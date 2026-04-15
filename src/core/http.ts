@@ -1,4 +1,4 @@
-export type AuthType = "bearer" | "apiKey";
+export type AuthType = "bearer" | "apiKey" | "both";
 
 export class HttpClient {
   constructor(
@@ -14,6 +14,13 @@ export class HttpClient {
       headers["Authorization"] = `Bearer ${this.token}`;
     } else if (auth === "apiKey" && this.apiKey) {
       headers["X-API-Key"] = this.apiKey;
+    } else if (auth === "both") {
+      if (this.token) {
+        headers["Authorization"] = `Bearer ${this.token}`;
+      }
+      if (this.apiKey) {
+        headers["X-API-Key"] = this.apiKey;
+      }
     }
 
     if (contentType !== "multipart/form-data") {
@@ -52,6 +59,21 @@ export class HttpClient {
 
   get<T>(path: string, auth?: AuthType) {
     return this.request<T>(path, {}, auth);
+  }
+
+  async getBlob(path: string, auth?: AuthType): Promise<Blob> {
+    const headers = this.getHeaders(auth, "application/json");
+
+    const res = await fetch(`${this.baseURL}${path}`, {
+      headers,
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: { message: `HTTP Error: ${res.status}`, code: "http_error" } }));
+      throw new Error(error.error?.message || `HTTP Error: ${res.status}`);
+    }
+
+    return res.blob();
   }
 
   post<T>(path: string, body?: unknown, auth?: AuthType) {
