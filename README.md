@@ -1,1 +1,1 @@
-# Kyro SDK
+# Kyro SDK typescript
