@@ -1,3 +1,5 @@
+import { KyroApiError } from "./errors";
+
 export type AuthType = "bearer" | "apiKey" | "both";
 
 export class HttpClient {
@@ -35,7 +37,8 @@ export class HttpClient {
     options: RequestInit = {},
     auth?: AuthType
   ): Promise<T> {
-    const contentType = options.headers?.["Content-Type"] || "application/json";
+    const headers = options.headers as Record<string, string> | undefined;
+    const contentType = headers?.["Content-Type"] || "application/json";
 
     const res = await fetch(`${this.baseURL}${path}`, {
       ...options,
@@ -46,8 +49,9 @@ export class HttpClient {
     });
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: { message: `HTTP Error: ${res.status}`, code: "http_error" } }));
-      throw new Error(error.error?.message || `HTTP Error: ${res.status}`);
+      const errorBody = await res.json().catch(() => ({ error: { message: `HTTP Error ${res.status}`, code: "http_error", details: [] } }));
+      const error = errorBody.error || { message: `HTTP Error ${res.status}`, code: "http_error", details: [] };
+      throw new KyroApiError(res.status, error.code, error.message, error.details);
     }
 
     if (res.status === 204) {
@@ -69,8 +73,9 @@ export class HttpClient {
     });
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: { message: `HTTP Error: ${res.status}`, code: "http_error" } }));
-      throw new Error(error.error?.message || `HTTP Error: ${res.status}`);
+      const errorBody = await res.json().catch(() => ({ error: { message: `HTTP Error ${res.status}`, code: "http_error", details: [] } }));
+      const error = errorBody.error || { message: `HTTP Error ${res.status}`, code: "http_error", details: [] };
+      throw new KyroApiError(res.status, error.code, error.message, error.details);
     }
 
     return res.blob();

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { KyroClient } from "../src";
+import { KyroClient, KyroApiError } from "../src";
 
 const API_KEY = process.env.KYRO_API_KEY || "kyro_live_test";
 const JWT_TOKEN = process.env.KYRO_JWT_TOKEN || "jwt_token_here";
@@ -17,6 +17,17 @@ const testHealthClient = new KyroClient({
     baseURL: "http://localhost:80",
 });
 
+function logError(prefix: string, error: unknown) {
+    if (error instanceof KyroApiError) {
+        console.error(`  ${prefix} FAILED:`, `[\u001b[31m${error.status}\u001b[0m] \u001b[1m${error.code}\u001b[0m: ${error.message}`);
+        if (error.details && error.details.length > 0) {
+            console.error("    Details:", error.details);
+        }
+    } else {
+        console.error(`  ${prefix} FAILED:`, error);
+    }
+}
+
 async function testHealth() {
     console.log("\n--- Testing Health ---");
     try {
@@ -24,7 +35,7 @@ async function testHealth() {
         const res = await testHealthClient.health.getHealth();
         console.log("  Health:", res);
     } catch (e) {
-        console.error("  getHealth FAILED:", e);
+        logError("getHealth", e);
     }
 }
 
@@ -40,7 +51,7 @@ async function testAuth() {
         });
         console.log("  Register:", registerRes);
     } catch (e) {
-        console.error("  Register FAILED:", e);
+        logError("Register", e);
     }
 
     try {
@@ -51,7 +62,7 @@ async function testAuth() {
         });
         console.log("  Login:", loginRes);
     } catch (e) {
-        console.error("  Login FAILED:", e);
+        logError("Login", e);
     }
 
     try {
@@ -59,7 +70,7 @@ async function testAuth() {
         const meRes = await client.auth.getMe();
         console.log("  Get Me:", meRes);
     } catch (e) {
-        console.error("  Get Me FAILED:", e);
+        logError("GetMe", e);
     }
 }
 
@@ -71,7 +82,7 @@ async function testOrg() {
         const orgRes = await client.org.getOrg();
         console.log("  Get Org:", orgRes);
     } catch (e) {
-        console.error("  Get Org FAILED:", e);
+        logError("GetOrg", e);
     }
 
     try {
@@ -79,7 +90,7 @@ async function testOrg() {
         const membersRes = await client.org.listMembers();
         console.log("  List Members:", membersRes);
     } catch (e) {
-        console.error("  List Members FAILED:", e);
+        logError("ListMembers", e);
     }
 
     try {
@@ -91,7 +102,7 @@ async function testOrg() {
         });
         console.log("  Invite Member:", inviteRes);
     } catch (e) {
-        console.error("  Invite Member FAILED:", e);
+        logError("InviteMember", e);
     }
 
     try {
@@ -99,7 +110,7 @@ async function testOrg() {
         const removeRes = await client.org.removeMember("member-id-here");
         console.log("  Remove Member:", removeRes);
     } catch (e) {
-        console.error("  Remove Member FAILED:", e);
+        logError("RemoveMember", e);
     }
 }
 
@@ -111,7 +122,7 @@ async function testKeys() {
         const listRes = await client.keys.listKeys();
         console.log("  List Keys:", listRes);
     } catch (e) {
-        console.error("  List Keys FAILED:", e);
+        logError("ListKeys", e);
     }
 
     try {
@@ -122,7 +133,7 @@ async function testKeys() {
         });
         console.log("  Create Key:", createRes);
     } catch (e) {
-        console.error("  Create Key FAILED:", e);
+        logError("CreateKey", e);
     }
 
     try {
@@ -130,7 +141,7 @@ async function testKeys() {
         const revokeRes = await client.keys.revokeKey("key-id-here");
         console.log("  Revoke Key:", revokeRes);
     } catch (e) {
-        console.error("  Revoke Key FAILED:", e);
+        logError("RevokeKey", e);
     }
 }
 
@@ -142,7 +153,7 @@ async function testFiles() {
         const listRes = await client.files.listFiles();
         console.log("  List Files:", listRes);
     } catch (e) {
-        console.error("  List Files FAILED:", e);
+        logError("ListFiles", e);
     }
 
     try {
@@ -151,7 +162,7 @@ async function testFiles() {
         const uploadRes = await client.files.uploadFile(fileContent, "test.txt");
         console.log("  Upload File:", uploadRes);
     } catch (e) {
-        console.error("  Upload File FAILED:", e);
+        logError("UploadFile", e);
     }
 
     try {
@@ -159,7 +170,7 @@ async function testFiles() {
         const downloadRes = await client.files.downloadFile("file-id-here");
         console.log("  Download File:", downloadRes);
     } catch (e) {
-        console.error("  Download File FAILED:", e);
+        logError("DownloadFile", e);
     }
 
     try {
@@ -167,7 +178,7 @@ async function testFiles() {
         const deleteRes = await client.files.deleteFile("file-id-here");
         console.log("  Delete File:", deleteRes);
     } catch (e) {
-        console.error("  Delete File FAILED:", e);
+        logError("DeleteFile", e);
     }
 }
 
@@ -179,7 +190,7 @@ async function testUsage() {
         const usageRes = await client.usage.getUsage("2024-01-01", "2024-01-31");
         console.log("  Get Usage:", usageRes);
     } catch (e) {
-        console.error("  Get Usage FAILED:", e);
+        logError("GetUsage", e);
     }
 
     try {
@@ -187,7 +198,7 @@ async function testUsage() {
         const dailyRes = await client.usage.getDailyUsage("2024-01-01", "2024-01-31");
         console.log("  Get Daily Usage:", dailyRes);
     } catch (e) {
-        console.error("  Get Daily Usage FAILED:", e);
+        logError("GetDailyUsage", e);
     }
 }
 
