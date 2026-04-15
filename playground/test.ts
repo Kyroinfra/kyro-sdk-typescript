@@ -17,6 +17,19 @@ const testHealthClient = new KyroClient({
     baseURL: "http://localhost:80",
 });
 
+let registeredEmail = "";
+let lastMemberId = "";
+let lastKeyId = "";
+let lastFileId = "";
+
+function randomEmail() {
+    return `test${Date.now()}${Math.random().toString(36).substring(2, 8)}@example.com`;
+}
+
+function randomOrgName() {
+    return `Test Org ${Date.now()}`;
+}
+
 function logError(prefix: string, error: unknown) {
     if (error instanceof KyroApiError) {
         console.error(`  ${prefix} FAILED:`, `[\u001b[31m${error.status}\u001b[0m] \u001b[1m${error.code}\u001b[0m: ${error.message}`);
@@ -42,12 +55,15 @@ async function testHealth() {
 async function testAuth() {
     console.log("\n--- Testing Auth ---");
 
+    const testEmail = randomEmail();
+    const testOrgName = randomOrgName();
+
     try {
         console.log("  → Testing register...");
         const registerRes = await client.auth.register({
-            email: "test@example.com",
+            email: testEmail,
             password: "password123",
-            orgName: "Test Org",
+            orgName: testOrgName,
         });
         console.log("  Register:", registerRes);
     } catch (e) {
@@ -57,7 +73,7 @@ async function testAuth() {
     try {
         console.log("  → Testing login...");
         const loginRes = await client.auth.login({
-            email: "test@example.com",
+            email: testEmail,
             password: "password123",
         });
         console.log("  Login:", loginRes);
@@ -96,18 +112,19 @@ async function testOrg() {
     try {
         console.log("  → Testing inviteMember...");
         const inviteRes = await client.org.inviteMember({
-            email: "newuser@example.com",
+            email: randomEmail(),
             password: "password123",
             role: "member",
         });
         console.log("  Invite Member:", inviteRes);
+        lastMemberId = inviteRes.id;
     } catch (e) {
         logError("InviteMember", e);
     }
 
     try {
         console.log("  → Testing removeMember...");
-        const removeRes = await client.org.removeMember("member-id-here");
+        const removeRes = await client.org.removeMember(lastMemberId || "member-id-here");
         console.log("  Remove Member:", removeRes);
     } catch (e) {
         logError("RemoveMember", e);
@@ -132,13 +149,14 @@ async function testKeys() {
             scopes: ["read", "write"],
         });
         console.log("  Create Key:", createRes);
+        lastKeyId = createRes.id;
     } catch (e) {
         logError("CreateKey", e);
     }
 
     try {
         console.log("  → Testing revokeKey...");
-        const revokeRes = await client.keys.revokeKey("key-id-here");
+        const revokeRes = await client.keys.revokeKey(lastKeyId || "key-id-here");
         console.log("  Revoke Key:", revokeRes);
     } catch (e) {
         logError("RevokeKey", e);
@@ -161,13 +179,14 @@ async function testFiles() {
         const fileContent = new Blob(["Hello World"], { type: "text/plain" });
         const uploadRes = await client.files.uploadFile(fileContent, "test.txt");
         console.log("  Upload File:", uploadRes);
+        lastFileId = uploadRes.id;
     } catch (e) {
         logError("UploadFile", e);
     }
 
     try {
         console.log("  → Testing downloadFile...");
-        const downloadRes = await client.files.downloadFile("file-id-here");
+        const downloadRes = await client.files.downloadFile(lastFileId || "file-id-here");
         console.log("  Download File:", downloadRes);
     } catch (e) {
         logError("DownloadFile", e);
@@ -175,7 +194,7 @@ async function testFiles() {
 
     try {
         console.log("  → Testing deleteFile...");
-        const deleteRes = await client.files.deleteFile("file-id-here");
+        const deleteRes = await client.files.deleteFile(lastFileId || "file-id-here");
         console.log("  Delete File:", deleteRes);
     } catch (e) {
         logError("DeleteFile", e);
