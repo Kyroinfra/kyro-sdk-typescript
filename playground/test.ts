@@ -30,6 +30,17 @@ function randomOrgName() {
     return `Test Org ${Date.now()}`;
 }
 
+function truncate(obj: any, maxLength: number = 200): string {
+    if (obj === null || obj === undefined) return "null";
+    const str = JSON.stringify(obj, null, 2);
+    if (str.length <= maxLength) return str;
+    return str.substring(0, maxLength) + "\n  ... (truncated)";
+}
+
+function logResponse(prefix: string, data: any) {
+    console.log(`  ${prefix}:`, truncate(data));
+}
+
 function logError(prefix: string, error: unknown) {
     if (error instanceof KyroApiError) {
         console.error(`  ${prefix} FAILED:`, `[\u001b[31m${error.status}\u001b[0m] \u001b[1m${error.code}\u001b[0m: ${error.message}`);
@@ -46,7 +57,7 @@ async function testHealth() {
     try {
         console.log("  → Testing getHealth...");
         const res = await testHealthClient.health.getHealth();
-        console.log("  Health:", res);
+        logResponse("Health", res);
     } catch (e) {
         logError("getHealth", e);
     }
@@ -65,7 +76,7 @@ async function testAuth() {
             password: "password123",
             orgName: testOrgName,
         });
-        console.log("  Register:", registerRes);
+        logResponse("Register", registerRes);
     } catch (e) {
         logError("Register", e);
     }
@@ -76,7 +87,7 @@ async function testAuth() {
             email: testEmail,
             password: "password123",
         });
-        console.log("  Login:", loginRes);
+        logResponse("Login", loginRes);
     } catch (e) {
         logError("Login", e);
     }
@@ -84,7 +95,7 @@ async function testAuth() {
     try {
         console.log("  → Testing getMe...");
         const meRes = await client.auth.getMe();
-        console.log("  Get Me:", meRes);
+        logResponse("Get Me", meRes);
     } catch (e) {
         logError("GetMe", e);
     }
@@ -96,7 +107,7 @@ async function testOrg() {
     try {
         console.log("  → Testing getOrg...");
         const orgRes = await client.org.getOrg();
-        console.log("  Get Org:", orgRes);
+        logResponse("Get Org", orgRes);
     } catch (e) {
         logError("GetOrg", e);
     }
@@ -104,7 +115,7 @@ async function testOrg() {
     try {
         console.log("  → Testing listMembers...");
         const membersRes = await client.org.listMembers();
-        console.log("  List Members:", membersRes);
+        logResponse("List Members", membersRes);
     } catch (e) {
         logError("ListMembers", e);
     }
@@ -116,7 +127,7 @@ async function testOrg() {
             password: "password123",
             role: "member",
         });
-        console.log("  Invite Member:", inviteRes);
+        logResponse("Invite Member", inviteRes);
         lastMemberId = inviteRes.id;
     } catch (e) {
         logError("InviteMember", e);
@@ -125,7 +136,7 @@ async function testOrg() {
     try {
         console.log("  → Testing removeMember...");
         const removeRes = await client.org.removeMember(lastMemberId || "member-id-here");
-        console.log("  Remove Member:", removeRes);
+        logResponse("Remove Member", removeRes);
     } catch (e) {
         logError("RemoveMember", e);
     }
@@ -137,7 +148,7 @@ async function testKeys() {
     try {
         console.log("  → Testing listKeys...");
         const listRes = await client.keys.listKeys();
-        console.log("  List Keys:", listRes);
+        logResponse("List Keys", listRes);
     } catch (e) {
         logError("ListKeys", e);
     }
@@ -148,7 +159,7 @@ async function testKeys() {
             name: "My API Key",
             scopes: ["read", "write"],
         });
-        console.log("  Create Key:", createRes);
+        logResponse("Create Key", createRes);
         lastKeyId = createRes.id;
     } catch (e) {
         logError("CreateKey", e);
@@ -157,7 +168,7 @@ async function testKeys() {
     try {
         console.log("  → Testing revokeKey...");
         const revokeRes = await client.keys.revokeKey(lastKeyId || "key-id-here");
-        console.log("  Revoke Key:", revokeRes);
+        logResponse("Revoke Key", revokeRes);
     } catch (e) {
         logError("RevokeKey", e);
     }
@@ -169,7 +180,7 @@ async function testFiles() {
     try {
         console.log("  → Testing listFiles...");
         const listRes = await client.files.listFiles();
-        console.log("  List Files:", listRes);
+        logResponse("List Files", listRes);
     } catch (e) {
         logError("ListFiles", e);
     }
@@ -178,7 +189,7 @@ async function testFiles() {
         console.log("  → Testing uploadFile...");
         const fileContent = new Blob(["Hello World"], { type: "text/plain" });
         const uploadRes = await client.files.uploadFile(fileContent, "test.txt");
-        console.log("  Upload File:", uploadRes);
+        logResponse("Upload File", uploadRes);
         lastFileId = uploadRes.id;
     } catch (e) {
         logError("UploadFile", e);
@@ -187,7 +198,7 @@ async function testFiles() {
     try {
         console.log("  → Testing downloadFile...");
         const downloadRes = await client.files.downloadFile(lastFileId || "file-id-here");
-        console.log("  Download File:", downloadRes);
+        console.log("  Download File: <Blob>");
     } catch (e) {
         logError("DownloadFile", e);
     }
@@ -195,7 +206,7 @@ async function testFiles() {
     try {
         console.log("  → Testing deleteFile...");
         const deleteRes = await client.files.deleteFile(lastFileId || "file-id-here");
-        console.log("  Delete File:", deleteRes);
+        logResponse("Delete File", deleteRes);
     } catch (e) {
         logError("DeleteFile", e);
     }
@@ -207,7 +218,7 @@ async function testUsage() {
     try {
         console.log("  → Testing getUsage...");
         const usageRes = await client.usage.getUsage("2024-01-01", "2024-01-31");
-        console.log("  Get Usage:", usageRes);
+        logResponse("Get Usage", usageRes);
     } catch (e) {
         logError("GetUsage", e);
     }
@@ -215,7 +226,7 @@ async function testUsage() {
     try {
         console.log("  → Testing getDailyUsage...");
         const dailyRes = await client.usage.getDailyUsage("2024-01-01", "2024-01-31");
-        console.log("  Get Daily Usage:", dailyRes);
+        logResponse("Get Daily Usage", dailyRes);
     } catch (e) {
         logError("GetDailyUsage", e);
     }
