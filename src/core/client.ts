@@ -18,7 +18,7 @@ export class KyroClient {
   public usage: UsageService;
 
   constructor(config: SDKConfig = {}) {
-    const baseURL = config.baseURL || "http://localhost:3000/api/v1";
+    const baseURL = config.baseURL || "http://localhost:80/api/v1";
 
     this.http = new HttpClient(baseURL, config.apiKey, config.token);
 

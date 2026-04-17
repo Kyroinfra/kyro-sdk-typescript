@@ -8,7 +8,6 @@ console.log("API KEY", API_KEY);
 console.log("JWT", JWT_TOKEN);
 
 const client = new KyroClient({
-    baseURL: "http://localhost:80/api/v1",
     apiKey: API_KEY,
     token: JWT_TOKEN,
 });
