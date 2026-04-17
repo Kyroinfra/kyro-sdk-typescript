@@ -9,20 +9,20 @@ export class FilesService {
     if (limit) params.append("limit", limit.toString());
     if (cursor) params.append("cursor", cursor);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.http.get<KyroFile[]>(`/files${query}`, "both");
+    return this.http.get<KyroFile[]>(`/files${query}`, "apiKey");
   }
 
   async uploadFile(file: File | Blob, fileName?: string): Promise<KyroFile> {
     const formData = new FormData();
     formData.append("file", file, fileName);
-    return this.http.postFormData<KyroFile>("/files", formData, "both");
+    return this.http.postFormData<KyroFile>("/files", formData, "apiKey");
   }
 
   async downloadFile(id: string): Promise<Blob> {
-    return this.http.getBlob(`/files/${id}`, "both");
+    return this.http.getBlob(`/files/${id}`, "apiKey");
   }
 
   async deleteFile(id: string) {
-    return this.http.delete<{ message: string; id: string }>(`/files/${id}`, "both");
+    return this.http.delete<{ message: string; id: string }>(`/files/${id}`, "apiKey");
   }
 }
