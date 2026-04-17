@@ -1,5 +1,14 @@
 import 'dotenv/config';
+import chalk from 'chalk';
 import { KyroClient, KyroApiError } from "../src";
+
+const c = {
+    success: (s: string) => chalk.green(s),
+    error: (s: string) => chalk.red(s),
+    warn: (s: string) => chalk.yellow(s),
+    info: (s: string) => chalk.blue(s),
+    header: (s: string) => chalk.cyan(chalk.bold(s)),
+};
 
 const API_KEY = process.env.KYRO_API_KEY || "kyro_live_test";
 const JWT_TOKEN = process.env.KYRO_JWT_TOKEN || "jwt_token_here";
@@ -37,24 +46,24 @@ function truncate(obj: any, maxLength: number = 200): string {
 }
 
 function logResponse(prefix: string, data: any) {
-    console.log(`  ${prefix}:`, truncate(data));
+    console.log(`  ${c.success(prefix + ":")}`, truncate(data));
 }
 
 function logError(prefix: string, error: unknown) {
     if (error instanceof KyroApiError) {
-        console.error(`  ${prefix} FAILED:`, `[\u001b[31m${error.status}\u001b[0m] \u001b[1m${error.code}\u001b[0m: ${error.message}`);
+        console.error(`  ${c.error(prefix + " FAILED:")}`, `[${chalk.red(error.status)}] ${chalk.bold(error.code)}: ${error.message}`);
         if (error.details && error.details.length > 0) {
             console.error("    Details:", error.details);
         }
     } else {
-        console.error(`  ${prefix} FAILED:`, error);
+        console.error(`  ${c.error(prefix + " FAILED:")}`, error);
     }
 }
 
 async function testHealth() {
-    console.log("\n--- Testing Health ---");
+    console.log(c.header("\n--- Testing Health ---"));
     try {
-        console.log("  → Testing getHealth...");
+        console.log(c.info("  → Testing getHealth..."));
         const res = await testHealthClient.health.getHealth();
         logResponse("Health", res);
     } catch (e) {
@@ -63,13 +72,13 @@ async function testHealth() {
 }
 
 async function testAuth() {
-    console.log("\n--- Testing Auth ---");
+    console.log(c.header("\n--- Testing Auth ---"));
 
     const testEmail = randomEmail();
     const testOrgName = randomOrgName();
 
     try {
-        console.log("  → Testing register...");
+        console.log(c.info("  → Testing register..."));
         const registerRes = await client.auth.register({
             email: testEmail,
             password: "password123",
@@ -81,7 +90,7 @@ async function testAuth() {
     }
 
     try {
-        console.log("  → Testing login...");
+        console.log(c.info("  → Testing login..."));
         const loginRes = await client.auth.login({
             email: testEmail,
             password: "password123",
@@ -92,7 +101,7 @@ async function testAuth() {
     }
 
     try {
-        console.log("  → Testing getMe...");
+        console.log(c.info("  → Testing getMe..."));
         const meRes = await client.auth.getMe();
         logResponse("Get Me", meRes);
     } catch (e) {
@@ -101,10 +110,10 @@ async function testAuth() {
 }
 
 async function testOrg() {
-    console.log("\n--- Testing Org ---");
+    console.log(c.header("\n--- Testing Org ---"));
 
     try {
-        console.log("  → Testing getOrg...");
+        console.log(c.info("  → Testing getOrg..."));
         const orgRes = await client.org.getOrg();
         logResponse("Get Org", orgRes);
     } catch (e) {
@@ -112,7 +121,7 @@ async function testOrg() {
     }
 
     try {
-        console.log("  → Testing listMembers...");
+        console.log(c.info("  → Testing listMembers..."));
         const membersRes = await client.org.listMembers();
         logResponse("List Members", membersRes);
     } catch (e) {
@@ -120,7 +129,7 @@ async function testOrg() {
     }
 
     try {
-        console.log("  → Testing inviteMember...");
+        console.log(c.info("  → Testing inviteMember..."));
         const inviteRes = await client.org.inviteMember({
             email: randomEmail(),
             password: "password123",
@@ -133,7 +142,7 @@ async function testOrg() {
     }
 
     try {
-        console.log("  → Testing removeMember...");
+        console.log(c.info("  → Testing removeMember..."));
         const removeRes = await client.org.removeMember(lastMemberId || "member-id-here");
         logResponse("Remove Member", removeRes);
     } catch (e) {
@@ -142,10 +151,10 @@ async function testOrg() {
 }
 
 async function testKeys() {
-    console.log("\n--- Testing Keys ---");
+    console.log(c.header("\n--- Testing Keys ---"));
 
     try {
-        console.log("  → Testing listKeys...");
+        console.log(c.info("  → Testing listKeys..."));
         const listRes = await client.keys.listKeys();
         logResponse("List Keys", listRes);
     } catch (e) {
@@ -153,7 +162,7 @@ async function testKeys() {
     }
 
     try {
-        console.log("  → Testing createKey...");
+        console.log(c.info("  → Testing createKey..."));
         const createRes = await client.keys.createKey({
             name: "My API Key",
             scopes: ["read", "write"],
@@ -165,7 +174,7 @@ async function testKeys() {
     }
 
     try {
-        console.log("  → Testing revokeKey...");
+        console.log(c.info("  → Testing revokeKey..."));
         const revokeRes = await client.keys.revokeKey(lastKeyId || "key-id-here");
         logResponse("Revoke Key", revokeRes);
     } catch (e) {
@@ -174,10 +183,10 @@ async function testKeys() {
 }
 
 async function testFiles() {
-    console.log("\n--- Testing Files ---");
+    console.log(c.header("\n--- Testing Files ---"));
 
     try {
-        console.log("  → Testing listFiles...");
+        console.log(c.info("  → Testing listFiles..."));
         const listRes = await client.files.listFiles();
         logResponse("List Files", listRes);
     } catch (e) {
@@ -185,7 +194,7 @@ async function testFiles() {
     }
 
     try {
-        console.log("  → Testing uploadFile...");
+        console.log(c.info("  → Testing uploadFile..."));
         const fileContent = new Blob(["Hello World"], { type: "text/plain" });
         const uploadRes = await client.files.uploadFile(fileContent, "test.txt");
         logResponse("Upload File", uploadRes);
@@ -195,15 +204,15 @@ async function testFiles() {
     }
 
     try {
-        console.log("  → Testing downloadFile...");
+        console.log(c.info("  → Testing downloadFile..."));
         const downloadRes = await client.files.downloadFile(lastFileId || "file-id-here");
-        console.log("  Download File: <Blob>");
+        console.log(c.success("  Download File: <Blob>"));
     } catch (e) {
         logError("DownloadFile", e);
     }
 
     try {
-        console.log("  → Testing deleteFile...");
+        console.log(c.info("  → Testing deleteFile..."));
         const deleteRes = await client.files.deleteFile(lastFileId || "file-id-here");
         logResponse("Delete File", deleteRes);
     } catch (e) {
@@ -212,10 +221,10 @@ async function testFiles() {
 }
 
 async function testUsage() {
-    console.log("\n--- Testing Usage ---");
+    console.log(c.header("\n--- Testing Usage ---"));
 
     try {
-        console.log("  → Testing getUsage...");
+        console.log(c.info("  → Testing getUsage..."));
         const usageRes = await client.usage.getUsage("2024-01-01", "2024-01-31");
         logResponse("Get Usage", usageRes);
     } catch (e) {
@@ -223,7 +232,7 @@ async function testUsage() {
     }
 
     try {
-        console.log("  → Testing getDailyUsage...");
+        console.log(c.info("  → Testing getDailyUsage..."));
         const dailyRes = await client.usage.getDailyUsage("2024-01-01", "2024-01-31");
         logResponse("Get Daily Usage", dailyRes);
     } catch (e) {
@@ -232,9 +241,9 @@ async function testUsage() {
 }
 
 async function runAllTests() {
-    console.log("Running Kyro SDK Tests...");
-    console.log("API Key:", API_KEY);
-    console.log("JWT Token:", JWT_TOKEN ? "set" : "not set");
+    console.log(c.header("Running Kyro SDK Tests..."));
+    console.log(c.info("API Key:"), API_KEY);
+    console.log(c.info("JWT Token:"), JWT_TOKEN ? c.success("set") : c.warn("not set"));
 
     await testHealth();
     await testAuth();
@@ -243,7 +252,7 @@ async function runAllTests() {
     await testFiles();
     await testUsage();
 
-    console.log("\n--- All Tests Complete ---");
+    console.log(c.header("\n--- All Tests Complete ---"));
 }
 
 runAllTests().catch(console.error);
