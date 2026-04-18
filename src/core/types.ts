@@ -1,5 +1,6 @@
 export interface SDKConfig {
   apiKey: string;
+  baseURL?: string;
 }
 
 export interface File {
