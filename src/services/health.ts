@@ -1,9 +1,11 @@
-import { HttpClient } from "../core/http";
-
 export class HealthService {
-  constructor(private http: HttpClient) {}
+  private baseURL = "http://localhost:80";
 
   async getHealth() {
-    return this.http.get<{ status: string }>("/health", undefined);
+    const res = await fetch(`${this.baseURL}/health`);
+    if (!res.ok) {
+      throw new Error(`HTTP Error: ${res.status}`);
+    }
+    return res.json();
   }
 }

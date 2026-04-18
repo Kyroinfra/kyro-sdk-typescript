@@ -14,12 +14,7 @@ const API_KEY = process.env.KYRO_API_KEY || "kyro_live_test";
 
 console.log("API KEY:", API_KEY);
 
-const healthClient = new KyroClient({
-    baseURL: "http://localhost:80",
-});
-
-const filesClient = new KyroClient({
-    baseURL: "http://localhost:80/api/v1",
+const client = new KyroClient({
     apiKey: API_KEY,
 });
 
@@ -51,7 +46,7 @@ async function testHealth() {
     console.log(c.header("\n--- Testing Health ---"));
     try {
         console.log(c.info("  → Testing getHealth..."));
-        const res = await healthClient.health.getHealth();
+        const res = await client.health.getHealth();
         logResponse("Health", res);
     } catch (e) {
         logError("getHealth", e);
@@ -63,7 +58,7 @@ async function testFiles() {
 
     try {
         console.log(c.info("  → Testing listFiles..."));
-        const listRes = await filesClient.files.listFiles();
+        const listRes = await client.files.listFiles();
         logResponse("List Files", listRes);
     } catch (e) {
         logError("ListFiles", e);
@@ -72,7 +67,7 @@ async function testFiles() {
     try {
         console.log(c.info("  → Testing uploadFile..."));
         const fileContent = new Blob(["Hello World"], { type: "text/plain" });
-        const uploadRes = await filesClient.files.uploadFile(fileContent, "test.txt");
+        const uploadRes = await client.files.uploadFile(fileContent, "test.txt");
         logResponse("Upload File", uploadRes);
         lastFileId = uploadRes.id;
     } catch (e) {
@@ -81,7 +76,7 @@ async function testFiles() {
 
     try {
         console.log(c.info("  → Testing downloadFile..."));
-        await filesClient.files.downloadFile(lastFileId || "file-id-here");
+        await client.files.downloadFile(lastFileId || "file-id-here");
         console.log(c.success("  Download File: <Blob>"));
     } catch (e) {
         logError("DownloadFile", e);
@@ -89,7 +84,7 @@ async function testFiles() {
 
     try {
         console.log(c.info("  → Testing deleteFile..."));
-        const deleteRes = await filesClient.files.deleteFile(lastFileId || "file-id-here");
+        const deleteRes = await client.files.deleteFile(lastFileId || "file-id-here");
         logResponse("Delete File", deleteRes);
     } catch (e) {
         logError("DeleteFile", e);
