@@ -1,3 +1,5 @@
 # Kyro SDK typescript
 
-<!-- npx tsx playground/test.ts -->
+```bash
+npx tsx playground/test.ts
+```
