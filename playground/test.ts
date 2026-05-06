@@ -128,7 +128,7 @@ async function testFilesV1() {
     console.log(c.header("\n--- Testing Files (v1) ---"));
 
     const clientV1 = new KyroClient({
-        baseURL: "http://localhost/api",
+        baseURL: "http://localhost/api/v1",
         apiKey: API_KEY,
         version: "v1",
     });
