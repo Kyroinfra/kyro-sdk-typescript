@@ -11,7 +11,18 @@ export class KyroClient {
     public files: FilesService;
 
     constructor(config: SDKConfig) {
-        this.baseURL = config.baseURL ?? "https://api.kyro.io/api/v1";
+        const version = config.version ?? "v2";
+        const apiVersion = config.version ?? "v2";
+        
+        if (config.baseURL) {
+            const hasApi = config.baseURL.includes("/api/");
+            this.baseURL = hasApi 
+                ? config.baseURL 
+                : `${config.baseURL}/api/${apiVersion}`;
+        } else {
+            this.baseURL = `https://api.kyro.io/api/${apiVersion}`;
+        }
+        
         this.http = new HttpClient(this.baseURL, config.apiKey);
 
         this.health = new HealthService();
