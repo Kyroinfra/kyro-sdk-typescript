@@ -20,6 +20,7 @@ const client = new KyroClient({
 });
 
 let lastFileId = "";
+let lastSearchResult: any = null;
 
 function truncate(obj: any, maxLength: number = 200): string {
     if (obj === null || obj === undefined) return "null";
@@ -54,8 +55,8 @@ async function testHealth() {
     }
 }
 
-async function testFiles() {
-    console.log(c.header("\n--- Testing Files ---"));
+async function testFilesV2() {
+    console.log(c.header("\n--- Testing Files (v2) ---"));
 
     try {
         console.log(c.info("  → Testing listFiles..."));
@@ -68,7 +69,7 @@ async function testFiles() {
     try {
         console.log(c.info("  → Testing uploadFile..."));
         const fileContent = new Blob(["Hello World"], { type: "text/plain" });
-        const uploadRes = await client.files.uploadFile(fileContent, "test.txt");
+        const uploadRes = await client.files.uploadFile(fileContent, "test-v2.txt");
         logResponse("Upload File", uploadRes);
         lastFileId = uploadRes.id;
     } catch (e) {
@@ -84,6 +85,37 @@ async function testFiles() {
     }
 
     try {
+        console.log(c.info("  → Testing getText..."));
+        if (lastFileId) {
+            const textRes = await client.files.getText(lastFileId);
+            logResponse("Get Text", textRes);
+        }
+    } catch (e) {
+        logError("getText", e);
+    }
+
+    try {
+        console.log(c.info("  → Testing searchFiles..."));
+        const searchRes = await client.files.searchFiles("Hello");
+        logResponse("Search Files", searchRes);
+        if (searchRes.data.length > 0) {
+            lastSearchResult = searchRes.data[0];
+        }
+    } catch (e) {
+        logError("searchFiles", e);
+    }
+
+    try {
+        console.log(c.info("  → Testing triggerExtraction..."));
+        if (lastFileId) {
+            const extractRes = await client.files.triggerExtraction(lastFileId);
+            logResponse("Trigger Extraction", extractRes);
+        }
+    } catch (e) {
+        logError("triggerExtraction", e);
+    }
+
+    try {
         console.log(c.info("  → Testing deleteFile..."));
         const deleteRes = await client.files.deleteFile(lastFileId || "file-id-here");
         logResponse("Delete File", deleteRes);
@@ -92,12 +124,40 @@ async function testFiles() {
     }
 }
 
+async function testFilesV1() {
+    console.log(c.header("\n--- Testing Files (v1) ---"));
+
+    const clientV1 = new KyroClient({
+        baseURL: "http://localhost/api",
+        apiKey: API_KEY,
+        version: "v1",
+    });
+
+    try {
+        console.log(c.info("  → Testing listFiles (v1)..."));
+        const listRes = await clientV1.files.listFiles();
+        logResponse("List Files (v1)", listRes);
+    } catch (e) {
+        logError("ListFiles (v1)", e);
+    }
+
+    try {
+        console.log(c.info("  → Testing uploadFile (v1)..."));
+        const fileContent = new Blob(["V1 Test"], { type: "text/plain" });
+        const uploadRes = await clientV1.files.uploadFile(fileContent, "test-v1.txt");
+        logResponse("Upload File (v1)", uploadRes);
+    } catch (e) {
+        logError("UploadFile (v1)", e);
+    }
+}
+
 async function runAllTests() {
     console.log(c.header("Running Kyro SDK Tests..."));
     console.log(c.info("API Key:"), API_KEY);
 
     await testHealth();
-    await testFiles();
+    await testFilesV2();
+    await testFilesV1();
 
     console.log(c.header("\n--- All Tests Complete ---"));
 }
