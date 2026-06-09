@@ -25,7 +25,6 @@ const { answer, sources } = await kyro.files.ask({
 });
 ```
 
----
 
 ## Typical Workflow
 
@@ -58,7 +57,6 @@ const { answer } = await kyro.files.ask({
 });
 ```
 
----
 
 <details>
 <summary><strong>Initialization</strong></summary>
@@ -73,7 +71,6 @@ const kyro = new KyroClient({
 
 </details>
 
----
 
 <details>
 <summary><strong>Files</strong></summary>
@@ -119,7 +116,6 @@ const { data } = await kyro.files.search("indemnification clause");
 
 </details>
 
----
 
 <details>
 <summary><strong>Text Extraction</strong></summary>
@@ -142,7 +138,6 @@ await kyro.files.triggerExtraction(fileId);
 
 </details>
 
----
 
 <details>
 <summary><strong>Embeddings</strong></summary>
@@ -157,7 +152,6 @@ Requires `OLLAMA_URL` to be configured on the server.
 
 </details>
 
----
 
 <details>
 <summary><strong>Metadata</strong></summary>
@@ -191,7 +185,6 @@ await kyro.files.deleteMetadataKey(fileId, "counterparty");
 
 </details>
 
----
 
 <details>
 <summary><strong>Collections</strong></summary>
@@ -257,7 +250,6 @@ await kyro.collections.removeFile(collectionId, fileId);
 
 </details>
 
----
 
 <details>
 <summary><strong>Semantic Search</strong></summary>
@@ -295,7 +287,6 @@ const { data } = await kyro.files.semanticSearch({
 
 </details>
 
----
 
 <details>
 <summary><strong>Ask (RAG)</strong></summary>
@@ -375,7 +366,6 @@ const { answer } = await kyro.files.ask({
 
 </details>
 
----
 
 <details>
 <summary><strong>Error Handling</strong></summary>
@@ -416,7 +406,6 @@ try {
 
 </details>
 
----
 
 <details>
 <summary><strong>Health</strong></summary>
