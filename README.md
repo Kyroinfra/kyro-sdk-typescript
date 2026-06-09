@@ -1,11 +1,3 @@
-<!-- # Kyro SDK typescript -->
-<!---->
-<!-- ```bash -->
-<!-- npx tsx playground/test.ts -->
-<!-- ``` -->
-<!---->
-<!-- > Webhooks are tested with this [Site](https://webhook.site/#!/view/371899d0-f11e-442d-83e4-0ac50f390fc5) using Postman -->
-
 # Kyro TypeScript SDK
 
 The official TypeScript SDK for [Kyro](https://kyro.io) — file storage, text extraction, semantic search, and RAG in one API.
@@ -25,17 +17,51 @@ const kyro = new KyroClient({
   apiKey: "kyro_live_...",
 });
 
-// Upload a file
 const file = await kyro.files.upload(blob, "report.pdf");
 
-// Ask a question across all your files
 const { answer, sources } = await kyro.files.ask({
   question: "What are the key findings?",
   stream: false,
 });
 ```
 
-## Initialization
+---
+
+## Typical Workflow
+
+```ts
+// 1. Upload
+const file = await kyro.files.upload(pdfBlob, "agreement.pdf");
+
+// 2. Tag with metadata
+await kyro.files.setMetadata(file.id, {
+  document_type: "contract",
+  matter_number: "M-2024-001",
+});
+
+// 3. Add to a collection
+await kyro.collections.addFiles(collectionId, { fileIds: [file.id] });
+
+// 4. Wait for embedding (poll or use webhooks)
+let status = (await kyro.files.getText(file.id)).extractionStatus;
+while (status !== "completed") {
+  await new Promise(r => setTimeout(r, 2000));
+  status = (await kyro.files.getText(file.id)).extractionStatus;
+}
+await kyro.files.embed(file.id);
+
+// 5. Ask questions
+const { answer } = await kyro.files.ask({
+  question:     "What are the termination conditions?",
+  collectionId: collectionId,
+  stream:       false,
+});
+```
+
+---
+
+<details>
+<summary><strong>Initialization</strong></summary>
 
 ```ts
 const kyro = new KyroClient({
@@ -45,9 +71,12 @@ const kyro = new KyroClient({
 });
 ```
 
+</details>
+
 ---
 
-## Files
+<details>
+<summary><strong>Files</strong></summary>
 
 ### Upload
 
@@ -88,9 +117,12 @@ const { data } = await kyro.files.search("indemnification clause");
 // data[i].headline — snippet with <mark> highlights
 ```
 
+</details>
+
 ---
 
-## Text Extraction
+<details>
+<summary><strong>Text Extraction</strong></summary>
 
 Text is extracted automatically on upload when Redis is available. You can also trigger it manually or poll for status.
 
@@ -108,9 +140,12 @@ await kyro.files.triggerExtraction(fileId);
 // Poll getText() until extractionStatus === "completed"
 ```
 
+</details>
+
 ---
 
-## Embeddings
+<details>
+<summary><strong>Embeddings</strong></summary>
 
 Embeddings are required before semantic search or `/ask` will return results for a file.
 
@@ -120,9 +155,12 @@ const { chunksCreated, embeddingStatus } = await kyro.files.embed(fileId);
 
 Requires `OLLAMA_URL` to be configured on the server.
 
+</details>
+
 ---
 
-## Metadata
+<details>
+<summary><strong>Metadata</strong></summary>
 
 Arbitrary key-value metadata per file. Useful for filtering in search and `/ask`.
 
@@ -130,9 +168,9 @@ Arbitrary key-value metadata per file. Useful for filtering in search and `/ask`
 
 ```ts
 await kyro.files.setMetadata(fileId, {
-  matter_number:  "M-2024-001",
-  document_type:  "contract",
-  counterparty:   "Acme Corp",
+  matter_number: "M-2024-001",
+  document_type: "contract",
+  counterparty:  "Acme Corp",
 });
 ```
 
@@ -151,9 +189,12 @@ const meta = await kyro.files.getMetadata(fileId);
 await kyro.files.deleteMetadataKey(fileId, "counterparty");
 ```
 
+</details>
+
 ---
 
-## Collections
+<details>
+<summary><strong>Collections</strong></summary>
 
 A collection is a named group of files — useful for scoping search and `/ask` to a project, matter, or product area.
 
@@ -214,9 +255,12 @@ const { data } = await kyro.collections.listFiles(collectionId);
 await kyro.collections.removeFile(collectionId, fileId);
 ```
 
+</details>
+
 ---
 
-## Semantic Search
+<details>
+<summary><strong>Semantic Search</strong></summary>
 
 Hybrid BM25 + vector search with Reciprocal Rank Fusion.
 
@@ -249,9 +293,12 @@ const { data } = await kyro.files.semanticSearch({
 });
 ```
 
+</details>
+
 ---
 
-## Ask (RAG)
+<details>
+<summary><strong>Ask (RAG)</strong></summary>
 
 Send a natural language question and get an answer grounded in your documents, with source citations.
 
@@ -326,14 +373,24 @@ const { answer } = await kyro.files.ask({
 | `model` | `string` | server default | Ollama model override |
 | `stream` | `boolean` | `true` | Whether to stream the response |
 
+</details>
+
 ---
 
-## Error Handling
+<details>
+<summary><strong>Error Handling</strong></summary>
 
 All methods throw typed errors you can catch and inspect:
 
 ```ts
-import { KyroApiError, KyroAuthError, KyroNotFoundError, KyroRateLimitError, KyroQuotaError, KyroValidationError } from "kyro-sdk";
+import {
+  KyroApiError,
+  KyroAuthError,
+  KyroNotFoundError,
+  KyroRateLimitError,
+  KyroQuotaError,
+  KyroValidationError,
+} from "kyro-sdk";
 
 try {
   await kyro.files.upload(blob, "file.pdf");
@@ -357,44 +414,16 @@ try {
 }
 ```
 
+</details>
+
 ---
 
-## Health
+<details>
+<summary><strong>Health</strong></summary>
 
 ```ts
 const { status, database, redis } = await kyro.health.getHealth();
 // status: "ok" | "degraded"
 ```
 
----
-
-## Typical Workflow
-
-```ts
-// 1. Upload
-const file = await kyro.files.upload(pdfBlob, "agreement.pdf");
-
-// 2. Tag with metadata
-await kyro.files.setMetadata(file.id, {
-  document_type: "contract",
-  matter_number: "M-2024-001",
-});
-
-// 3. Add to a collection
-await kyro.collections.addFiles(collectionId, { fileIds: [file.id] });
-
-// 4. Wait for embedding (poll or use webhooks)
-let status = (await kyro.files.getText(file.id)).extractionStatus;
-while (status !== "completed") {
-  await new Promise(r => setTimeout(r, 2000));
-  status = (await kyro.files.getText(file.id)).extractionStatus;
-}
-await kyro.files.embed(file.id);
-
-// 5. Ask questions
-const { answer } = await kyro.files.ask({
-  question:     "What are the termination conditions?",
-  collectionId: collectionId,
-  stream:       false,
-});
-```
+</details>
