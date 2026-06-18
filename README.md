@@ -14,7 +14,7 @@ npm install kyro-sdk
 import { KyroClient } from "kyro-sdk";
 
 const kyro = new KyroClient({
-  baseURL: "http://localhost/api/v2", // For Server URL
+  baseURL: "https://your-kyro-instance.com/api/v2", // For Server URL
   apiKey: "kyro_live_...",
 });
 
