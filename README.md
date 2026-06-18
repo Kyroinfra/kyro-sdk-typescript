@@ -1,6 +1,6 @@
 # Kyro TypeScript SDK
 
-The official TypeScript SDK for [Kyro](https://kyro.io) — file storage, text extraction, semantic search, and RAG in one API.
+The official TypeScript SDK for [Kyro](https://kyro-henna.vercel.app) — file storage, text extraction, semantic search, and RAG in one API.
 
 ## Installation
 
