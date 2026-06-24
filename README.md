@@ -8,7 +8,7 @@ The official TypeScript SDK for [Kyro](https://kyro-henna.vercel.app) — file s
 ## Installation
 
 ```bash
-npm install kyro-sdk
+npm i @kyroinfra/kyro
 ```
 
 ## Quick Start
