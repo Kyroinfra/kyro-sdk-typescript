@@ -1,6 +1,6 @@
 {
   "name": "@kyroinfra/kyro",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Official TypeScript SDK for Kyro — file storage, text extraction, semantic search, and RAG in one API.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
