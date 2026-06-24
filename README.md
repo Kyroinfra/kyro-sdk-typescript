@@ -1,5 +1,8 @@
 # Kyro TypeScript SDK
 
+<!-- To run test -->
+<!-- npx tsx playground/test.ts -->
+
 The official TypeScript SDK for [Kyro](https://kyro-henna.vercel.app) — file storage, text extraction, semantic search, and RAG in one API.
 
 ## Installation
