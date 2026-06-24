@@ -1,5 +1,5 @@
 {
-  "name": "kyrosdk-typescript",
+  "name": "@kyroinfra/kyro",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
@@ -9,8 +9,8 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Nyxox-debug",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^25.6.0",

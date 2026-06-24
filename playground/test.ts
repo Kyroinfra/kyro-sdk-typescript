@@ -50,7 +50,7 @@ const API_KEY = process.env.KYRO_API_KEY || "kyro_live_test";
 console.log("API KEY:", API_KEY);
 
 const client = new KyroClient({
-    baseURL: "http://localhost/api/v2",
+    baseURL: "http://localhost:3000/api/v2",
     apiKey:  API_KEY,
 });
 
