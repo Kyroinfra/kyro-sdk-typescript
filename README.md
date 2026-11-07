@@ -422,7 +422,7 @@ try {
 <summary><strong>Health</strong></summary>
 
 ```ts
-const { status, database, redis } = await kyro.health.getHealth();
+const { status, database } = await kyro.health.getHealth();
 // status: "ok" | "degraded"
 ```
 

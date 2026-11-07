@@ -254,7 +254,6 @@ export interface HealthResponse {
   uptime:    number;
   timestamp: string;
   database:  "connected" | "disconnected";
-  redis:     "connected" | "disconnected" | "optional";
 }
 
 // ── Errors ────────────────────────────────────────────────────────────────────
