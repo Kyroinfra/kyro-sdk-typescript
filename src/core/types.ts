@@ -223,11 +223,19 @@ export interface HealthResponse {
 
 export interface ErrorDetail {
   message: string;
-  path:    string;
+  /** Zod issue path — an array; array indices appear as numbers. */
+  path:    (string | number)[];
 }
 
+/**
+ * The raw error body the API emits. `error` is a plain string on inline route
+ * errors and an object ({message, ...}) from the central error handler;
+ * `details` and `retryAfter` sit at the top level, next to any extra fields
+ * (e.g. invalidFileIds, supportedTypes).
+ */
 export interface KyroError {
-  message: string;
-  code:    string;
-  details: ErrorDetail[];
+  error:       string | { message?: string; code?: string; stack?: string };
+  details?:    ErrorDetail[];
+  retryAfter?: number;
+  [key: string]: unknown;
 }

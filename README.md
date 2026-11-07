@@ -380,9 +380,14 @@ All methods throw typed errors you can catch and inspect:
 import {
   KyroApiError,
   KyroAuthError,
+  KyroConflictError,
+  KyroFileTooLargeError,
+  KyroForbiddenError,
   KyroNotFoundError,
   KyroRateLimitError,
-  KyroQuotaError,
+  KyroStorageLimitError,
+  KyroUnprocessableError,
+  KyroUnsupportedMediaTypeError,
   KyroValidationError,
 } from "kyro-sdk";
 
@@ -391,8 +396,10 @@ try {
 } catch (err) {
   if (err instanceof KyroAuthError) {
     // 401 — invalid or missing API key
-  } else if (err instanceof KyroQuotaError) {
-    // 403 — storage quota exceeded
+  } else if (err instanceof KyroForbiddenError) {
+    // 403 — the API key lacks the required scope
+  } else if (err instanceof KyroStorageLimitError) {
+    // 507 — deployment storage cap reached
   } else if (err instanceof KyroNotFoundError) {
     // 404 — file or resource not found
   } else if (err instanceof KyroRateLimitError) {
@@ -402,7 +409,8 @@ try {
     // 400 — bad input; err.details has per-field messages
     console.error(err.details);
   } else if (err instanceof KyroApiError) {
-    // catch-all for any other API error
+    // catch-all: 409 conflict, 413 too large, 415 unsupported type,
+    // 422 empty scope, 503 degraded, or anything unexpected
     console.error(err.status, err.code, err.message);
   }
 }
