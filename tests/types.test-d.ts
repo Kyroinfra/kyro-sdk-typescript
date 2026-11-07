@@ -9,6 +9,7 @@ import type {
   FileRecord,
   FileStatus,
   FileUploadResponse,
+  HealthResponse,
   OffsetPagination,
   OffsetPaginatedResponse,
   TextExtractionResponse,
@@ -16,6 +17,7 @@ import type {
 } from "../src/core/types";
 import type { CollectionsService } from "../src/services/collections";
 import type { FilesService } from "../src/services/files";
+import type { HealthService } from "../src/services/health";
 
 describe("FileStatus", () => {
   it("is exactly the five server values", () => {
@@ -129,5 +131,21 @@ describe("CollectionsService", () => {
     expectTypeOf<CreateReturn>().toEqualTypeOf<CreateCollectionResponse>();
     expectTypeOf<GetReturn>().toEqualTypeOf<CollectionDetail>();
     expectTypeOf<UpdateReturn>().toEqualTypeOf<UpdateCollectionResponse>();
+  });
+});
+
+describe("HealthResponse", () => {
+  it("is the exact four-field server body", () => {
+    expectTypeOf<HealthResponse>().toEqualTypeOf<{
+      status:    "ok" | "degraded";
+      uptime:    number;
+      timestamp: string;
+      database:  "connected" | "disconnected";
+    }>();
+  });
+
+  it("getHealth resolves it", () => {
+    type GetHealthReturn = Awaited<ReturnType<HealthService["getHealth"]>>;
+    expectTypeOf<GetHealthReturn>().toEqualTypeOf<HealthResponse>();
   });
 });
