@@ -128,15 +128,6 @@ async function testFiles() {
         logError("download", e);
     }
 
-    // full-text search (BM25)
-    try {
-        console.log(c.info("  → search (BM25)"));
-        const res = await client.files.search("fox", 5);
-        logResponse("Search", res);
-    } catch (e) {
-        logError("search", e);
-    }
-
     // getText
     try {
         console.log(c.info("  → getText"));
@@ -149,29 +140,6 @@ async function testFiles() {
         logError("getText", e);
     }
 
-    // triggerExtraction
-    try {
-        console.log(c.info("  → triggerExtraction"));
-        if (!uploadedFileId) { logSkip("triggerExtraction", "no file id"); }
-        else {
-            const res = await client.files.triggerExtraction(uploadedFileId);
-            logResponse("triggerExtraction", res);
-        }
-    } catch (e) {
-        logError("triggerExtraction", e);
-    }
-
-    // embed
-    try {
-        console.log(c.info("  → embed"));
-        if (!uploadedFileId) { logSkip("embed", "no file id"); }
-        else {
-            const res = await client.files.embed(uploadedFileId);
-            logResponse("embed", res);
-        }
-    } catch (e) {
-        logError("embed", e);
-    }
 }
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -329,140 +297,6 @@ async function testCollections() {
     }
 }
 
-// ── Semantic search ───────────────────────────────────────────────────────────
-
-async function testSemanticSearch() {
-    console.log(c.header("\n━━━ Semantic Search ━━━"));
-
-    // org-wide
-    try {
-        console.log(c.info("  → semanticSearch (org-wide)"));
-        const res = await client.files.semanticSearch({
-            query:    "document storage platform",
-            limit:    5,
-            minScore: 0.01,
-        });
-        logResponse("semanticSearch (org-wide)", res);
-    } catch (e) {
-        logError("semanticSearch (org-wide)", e);
-    }
-
-    // scoped to collection
-    try {
-        console.log(c.info("  → semanticSearch (by collection)"));
-        if (!collectionId) { logSkip("semanticSearch (collection)", "no collection id"); }
-        else {
-            const res = await client.files.semanticSearch({
-                query:        "hybrid search retrieval",
-                collectionId,
-                limit:        3,
-            });
-            logResponse("semanticSearch (collection)", res);
-        }
-    } catch (e) {
-        logError("semanticSearch (collection)", e);
-    }
-
-    // scoped to specific files
-    try {
-        console.log(c.info("  → semanticSearch (by fileIds)"));
-        if (!uploadedFileId) { logSkip("semanticSearch (fileIds)", "no file id"); }
-        else {
-            const res = await client.files.semanticSearch({
-                query:   "fox",
-                fileIds: [uploadedFileId],
-                limit:   3,
-            });
-            logResponse("semanticSearch (fileIds)", res);
-        }
-    } catch (e) {
-        logError("semanticSearch (fileIds)", e);
-    }
-}
-
-// ── Ask ───────────────────────────────────────────────────────────────────────
-
-async function testAsk() {
-    console.log(c.header("\n━━━ Ask (RAG) ━━━"));
-
-    // non-streaming, org-wide
-    try {
-        console.log(c.info("  → ask (non-streaming, org-wide)"));
-        const res = await client.files.ask({
-            question: "What is Kyro?",
-            stream:   false,
-        });
-        logResponse("ask (non-streaming)", res);
-    } catch (e) {
-        logError("ask (non-streaming)", e);
-    }
-
-    // non-streaming, scoped to collection
-    try {
-        console.log(c.info("  → ask (non-streaming, collection)"));
-        if (!collectionId) { logSkip("ask (collection)", "no collection id"); }
-        else {
-            const res = await client.files.ask({
-                question:     "Explain hybrid search.",
-                collectionId,
-                topK:         4,
-                stream:       false,
-            });
-            logResponse("ask (collection)", res);
-        }
-    } catch (e) {
-        logError("ask (collection)", e);
-    }
-
-    // non-streaming with metadata filter
-    try {
-        console.log(c.info("  → ask (non-streaming, metadata filter)"));
-        const res = await client.files.ask({
-            question: "What document types exist?",
-            filters:  { document_type: "playground" },
-            stream:   false,
-        });
-        logResponse("ask (metadata filter)", res);
-    } catch (e) {
-        logError("ask (metadata filter)", e);
-    }
-
-    // streaming, org-wide
-    try {
-        console.log(c.info("  → ask (streaming)"));
-        process.stdout.write(`  ${c.success("ask (streaming):")} `);
-
-        const stream = client.files.askStream({ question: "What is BM25?" });
-        let gotSources = false;
-
-        for await (const event of stream) {
-            switch (event.type) {
-                case "sources":
-                    gotSources = true;
-                    process.stdout.write(
-                        c.dim(`[${event.sources.length} source(s)] `)
-                    );
-                    break;
-                case "chunk":
-                    process.stdout.write(event.text);
-                    break;
-                case "done":
-                    process.stdout.write("\n");
-                    break;
-                case "error":
-                    process.stdout.write(`\n  ${c.error("Stream error: " + event.message)}\n`);
-                    break;
-            }
-        }
-
-        if (!gotSources) {
-            console.log(c.warn("  (no sources event received)"));
-        }
-    } catch (e) {
-        logError("ask (streaming)", e);
-    }
-}
-
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 
 async function testCleanup() {
@@ -537,8 +371,6 @@ async function runAllTests() {
     await testFiles();
     await testMetadata();
     await testCollections();
-    await testSemanticSearch();
-    await testAsk();
     await testCleanup();
     await testV1Smoke();
 
