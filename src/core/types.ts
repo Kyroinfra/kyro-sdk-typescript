@@ -63,10 +63,14 @@ export interface TextExtractionResponse {
   error?: string;
 }
 
-export interface TriggerExtractionResponse {
+/**
+ * Response of `POST /files/:id/reprocess` (202). The server sets the file
+ * back to "pending" and re-runs the full pipeline (extract → embed).
+ */
+export interface ReprocessResponse {
   fileId: string;
   status: FileStatus;
-  message?: string;
+  message: string;
 }
 
 export interface SearchResult extends FileRecord {
