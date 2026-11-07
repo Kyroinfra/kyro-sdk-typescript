@@ -7,17 +7,15 @@ export interface SDKConfig {
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
-export type ExtractionStatus =
+/**
+ * The single file lifecycle status. Extraction and embedding run inside the
+ * same ingest pipeline, so the server keeps one `status` column with these
+ * five values.
+ */
+export type FileStatus =
   | "pending"
   | "processing"
-  | "completed"
-  | "failed"
-  | "skipped";
-
-export type EmbeddingStatus =
-  | "pending"
-  | "embedding"
-  | "completed"
+  | "ready"
   | "failed"
   | "skipped";
 
@@ -37,41 +35,46 @@ export interface PaginatedResponse<T> {
 
 // ── Files ─────────────────────────────────────────────────────────────────────
 
-export interface File {
+/**
+ * A file record as the API returns it. Named `FileRecord` — not `File` — to
+ * avoid colliding with the DOM `File` accepted by `files.upload()`.
+ */
+export interface FileRecord {
   id: string;
   name: string;
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
+  status: FileStatus;
 }
 
-export interface FileWithExtraction extends File {
-  extractionStatus: ExtractionStatus;
+/** Row of `GET /files`. `error` is present only when status is "failed". */
+export interface FileListRow extends FileRecord {
+  error?: string;
 }
 
-export interface FileUploadResponse extends FileWithExtraction {
-  extractedText?: string;
-}
+/** Response of `files.upload()` — the upload route returns the record itself. */
+export type FileUploadResponse = FileRecord;
 
 export interface TextExtractionResponse {
   fileId: string;
-  extractionStatus: ExtractionStatus;
+  status: FileStatus;
   extractedText?: string | null;
   error?: string;
 }
 
 export interface TriggerExtractionResponse {
   fileId: string;
-  extractionStatus: ExtractionStatus;
+  status: FileStatus;
   message?: string;
 }
 
-export interface SearchResult extends File {
+export interface SearchResult extends FileRecord {
   rank: number;
   headline: string;
 }
 
-export type FileListResponse = PaginatedResponse<FileWithExtraction>;
+export type FileListResponse = PaginatedResponse<FileListRow>;
 export type SearchResponse   = PaginatedResponse<SearchResult>;
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -99,8 +102,7 @@ export interface CollectionWithStats extends Collection {
   queryReady?:   boolean;
 }
 
-export interface CollectionFile extends File {
-  embeddingStatus: EmbeddingStatus;
+export interface CollectionFile extends FileRecord {
   addedAt: string;
 }
 

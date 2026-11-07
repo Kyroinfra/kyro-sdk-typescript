@@ -1,6 +1,5 @@
 import { HttpClient } from "../core/http";
 import type {
-  FileWithExtraction,
   FileListResponse,
   FileUploadResponse,
   TextExtractionResponse,

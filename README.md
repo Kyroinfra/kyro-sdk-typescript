@@ -46,10 +46,10 @@ await kyro.files.setMetadata(file.id, {
 await kyro.collections.addFiles(collectionId, { fileIds: [file.id] });
 
 // 4. Wait for embedding (poll or use webhooks)
-let status = (await kyro.files.getText(file.id)).extractionStatus;
-while (status !== "completed") {
+let status = (await kyro.files.getText(file.id)).status;
+while (status !== "ready") {
   await new Promise(r => setTimeout(r, 2000));
-  status = (await kyro.files.getText(file.id)).extractionStatus;
+  status = (await kyro.files.getText(file.id)).status;
 }
 await kyro.files.embed(file.id);
 
@@ -82,7 +82,7 @@ const kyro = new KyroClient({
 
 ```ts
 const file = await kyro.files.upload(blob, "contract.pdf");
-// file.id, file.extractionStatus ("pending" | "completed" | "skipped")
+// file.id, file.status ("pending" | "processing" | "ready" | "failed" | "skipped")
 ```
 
 Supported types: PDF, DOCX, TXT. Other types are stored but not extracted.
@@ -128,15 +128,15 @@ Text is extracted automatically on upload when Redis is available. You can also 
 ### Check status
 
 ```ts
-const { extractionStatus, extractedText } = await kyro.files.getText(fileId);
-// extractionStatus: "pending" | "processing" | "completed" | "failed" | "skipped"
+const { status, extractedText } = await kyro.files.getText(fileId);
+// status: "pending" | "processing" | "ready" | "failed" | "skipped"
 ```
 
 ### Trigger manually
 
 ```ts
 await kyro.files.triggerExtraction(fileId);
-// Poll getText() until extractionStatus === "completed"
+// Poll getText() until status === "ready"
 ```
 
 </details>
@@ -242,7 +242,7 @@ await kyro.collections.addFiles(collectionId, {
 
 ```ts
 const { data } = await kyro.collections.listFiles(collectionId);
-// data[i].embeddingStatus — per-file embedding state
+// data[i].status — per-file pipeline status
 ```
 
 ### Remove a file
