@@ -1,11 +1,18 @@
 import {
   KyroApiError,
   KyroAuthError,
+  KyroConflictError,
+  KyroFileTooLargeError,
+  KyroForbiddenError,
   KyroNotFoundError,
-  KyroQuotaError,
   KyroRateLimitError,
+  KyroServiceUnavailableError,
+  KyroStorageLimitError,
+  KyroUnprocessableError,
+  KyroUnsupportedMediaTypeError,
   KyroValidationError,
 } from "./errors";
+import type { ErrorDetail } from "./types";
 
 export type AuthType = "apiKey";
 
@@ -35,27 +42,14 @@ export class HttpClient {
   }
 
   private async throwTypedError(res: Response): Promise<never> {
-    let body: any = {};
+    let body: unknown;
     try {
       body = await res.json();
     } catch {
-      // response body wasn't JSON — use a generic message
+      // response body wasn't JSON — the parser falls back to a generic message
+      body = undefined;
     }
-
-    const err = body?.error ?? {};
-    const message: string  = err.message ?? `HTTP ${res.status}`;
-    const code: string     = err.code    ?? "http_error";
-    const details          = err.details ?? [];
-    const retryAfter       = body?.retryAfter as number | undefined;
-
-    switch (res.status) {
-      case 400: throw new KyroValidationError(message, details);
-      case 401: throw new KyroAuthError(message);
-      case 403: throw new KyroQuotaError(message);
-      case 404: throw new KyroNotFoundError(message);
-      case 429: throw new KyroRateLimitError(retryAfter);
-      default:  throw new KyroApiError(res.status, code, message, details);
-    }
+    throw errorForStatus(res.status, body);
   }
 
   private async request<T>(
@@ -166,5 +160,94 @@ export class HttpClient {
 
   delete<T>(path: string, auth?: AuthType): Promise<T> {
     return this.request<T>(path, { method: "DELETE" }, auth);
+  }
+}
+
+// ── Error-body parsing ───────────────────────────────────────────────────────
+//
+// The API emits two error envelope shapes:
+//   1. inline route errors:  { error: "message", details?: [...], ...extras }
+//   2. central handler:      { error: { message, stack? } }  (and not-found:
+//                            { error: { message, statusCode } })
+// `details` and `retryAfter` sit at the body's top level. Every other
+// top-level field is preserved on `data`, so callers can read things like
+// invalidFileIds or supportedTypes without re-parsing the body.
+
+const STATUS_CODES: Record<number, string> = {
+  400: "validation_error",
+  401: "unauthorized",
+  403: "forbidden",
+  404: "not_found",
+  409: "conflict",
+  413: "file_too_large",
+  415: "unsupported_media_type",
+  422: "unprocessable",
+  429: "rate_limit_exceeded",
+  503: "service_unavailable",
+  507: "storage_limit_exceeded",
+};
+
+function codeFor(status: number): string {
+  return STATUS_CODES[status] ?? "http_error";
+}
+
+export interface ParsedErrorBody {
+  message:    string;
+  code:       string;
+  details?:   ErrorDetail[];
+  retryAfter?: number;
+  data?:      Record<string, unknown>;
+}
+
+export function parseErrorBody(status: number, body: unknown): ParsedErrorBody {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const rawError = b.error;
+
+  let message = `HTTP ${status}`;
+  if (typeof rawError === "string" && rawError.length > 0) {
+    message = rawError;
+  } else if (rawError && typeof rawError === "object") {
+    const m = (rawError as Record<string, unknown>).message;
+    if (typeof m === "string" && m.length > 0) {
+      message = m;
+    }
+  }
+
+  const details = Array.isArray(b.details) ? (b.details as ErrorDetail[]) : undefined;
+  const retryAfter = typeof b.retryAfter === "number" ? b.retryAfter : undefined;
+
+  const data: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(b)) {
+    if (key !== "error" && key !== "details" && key !== "retryAfter") {
+      data[key] = value;
+    }
+  }
+
+  return {
+    message,
+    code: codeFor(status),
+    details,
+    retryAfter,
+    data: Object.keys(data).length > 0 ? data : undefined,
+  };
+}
+
+export function errorForStatus(status: number, body: unknown): KyroApiError {
+  const { message, code, details, retryAfter, data } = parseErrorBody(status, body);
+  const options = { details, retryAfter, data };
+
+  switch (status) {
+    case 400: return new KyroValidationError(message, options);
+    case 401: return new KyroAuthError(message, options);
+    case 403: return new KyroForbiddenError(message, options);
+    case 404: return new KyroNotFoundError(message, options);
+    case 409: return new KyroConflictError(message, options);
+    case 413: return new KyroFileTooLargeError(message, options);
+    case 415: return new KyroUnsupportedMediaTypeError(message, options);
+    case 422: return new KyroUnprocessableError(message, options);
+    case 429: return new KyroRateLimitError(message, options);
+    case 503: return new KyroServiceUnavailableError(message, options);
+    case 507: return new KyroStorageLimitError(message, options);
+    default:  return new KyroApiError(status, code, message, options);
   }
 }
