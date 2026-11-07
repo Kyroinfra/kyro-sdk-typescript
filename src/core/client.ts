@@ -13,15 +13,17 @@ export class KyroClient {
     public collections:  CollectionsService;
 
     constructor(config: SDKConfig) {
-        const apiVersion = config.version ?? "v2";
-
         if (config.baseURL) {
-            const hasApi = config.baseURL.includes("/api/");
-            this.baseURL = hasApi
-                ? config.baseURL
-                : `${config.baseURL}/api/${apiVersion}`;
+            // Trim trailing slashes first, so both "http://localhost:3000/"
+            // and "http://localhost:3000/api/v1/" resolve cleanly. A baseURL
+            // that already points at an API path is used as-is; anything else
+            // gets the (only) API version path appended.
+            const base = config.baseURL.replace(/\/+$/, "");
+            this.baseURL = base.includes("/api/")
+                ? base
+                : `${base}/api/v1`;
         } else {
-            this.baseURL = `https://api.kyro.io/api/${apiVersion}`;
+            this.baseURL = "https://api.kyro.io/api/v1";
         }
 
         this.http = new HttpClient(this.baseURL, config.apiKey);

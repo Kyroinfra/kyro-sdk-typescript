@@ -3,7 +3,6 @@
 export interface SDKConfig {
   apiKey: string;
   baseURL?: string;
-  version?: "v1" | "v2";
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────

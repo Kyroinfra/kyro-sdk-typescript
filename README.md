@@ -17,7 +17,7 @@ npm i @kyroinfra/kyro
 import { KyroClient } from "kyro-sdk";
 
 const kyro = new KyroClient({
-  baseURL: "https://your-kyro-instance.com/api/v2", // For Server URL
+  baseURL: "https://your-kyro-instance.com/api/v1", // For Server URL
   apiKey: "kyro_live_...",
 });
 
@@ -68,8 +68,7 @@ const { answer } = await kyro.files.ask({
 ```ts
 const kyro = new KyroClient({
   apiKey:  "kyro_live_...",   // required
-  baseURL: "https://...",     // optional — defaults to https://api.kyro.io
-  version: "v2",              // optional — "v1" | "v2", defaults to "v2"
+  baseURL: "https://...",     // optional — defaults to https://api.kyro.io/api/v1
 });
 ```
 
