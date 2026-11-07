@@ -88,29 +88,62 @@ export type FileMetadata = Record<string, string>;
 
 // ── Collections ───────────────────────────────────────────────────────────────
 
-export interface Collection {
+/** Row of `GET /collections`. Counts derive from `files.status`. */
+export interface CollectionSummary {
   id: string;
   name: string;
-  description?: string | null;
-  slug: string;
+  description: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CollectionWithStats extends Collection {
   fileCount:     number;
   embeddedCount: number;
   pendingCount:  number;
   failedCount:   number;
-  skippedCount?: number;
-  queryReady?:   boolean;
+}
+
+/**
+ * Response of `GET /collections/:id` — the summary shape plus the full
+ * per-status breakdown and the query-readiness flag.
+ */
+export interface CollectionDetail extends CollectionSummary {
+  skippedCount: number;
+  /** true when every member file is extracted and embedded. */
+  queryReady: boolean;
+}
+
+/** Response of `POST /collections` (201) — not a full record. */
+export interface CreateCollectionResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+/** Response of `PATCH /collections/:id` — not a full record. */
+export interface UpdateCollectionResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  updatedAt: string;
 }
 
 export interface CollectionFile extends FileRecord {
   addedAt: string;
 }
 
-export type CollectionFilesResponse = PaginatedResponse<CollectionFile>;
+export interface OffsetPagination {
+  total:   number;
+  limit:   number;
+  offset:  number;
+  hasMore: boolean;
+}
+
+export interface OffsetPaginatedResponse<T> {
+  data: T[];
+  pagination: OffsetPagination;
+}
+
+export type CollectionFilesResponse = OffsetPaginatedResponse<CollectionFile>;
 
 export interface CreateCollectionInput {
   name: string;
