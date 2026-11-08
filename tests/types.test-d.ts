@@ -13,6 +13,10 @@ import type {
   MetadataFilters,
   OffsetPagination,
   OffsetPaginatedResponse,
+  AskInput,
+  AskResponse,
+  AskStreamEvent,
+  AskTurn,
   RetrievalSource,
   SearchInput,
   SearchResponse,
@@ -175,5 +179,45 @@ describe("SearchInput", () => {
     expectTypeOf<SearchInput["query"]>().toEqualTypeOf<string>();
     expectTypeOf<SearchInput["limit"]>().toEqualTypeOf<number | undefined>();
     expectTypeOf<SearchInput["filters"]>().toEqualTypeOf<MetadataFilters | undefined>();
+  });
+});
+
+describe("AskTurn", () => {
+  it("is the server's history turn shape", () => {
+    expectTypeOf<AskTurn["role"]>().toEqualTypeOf<"user" | "assistant">();
+    expectTypeOf<AskTurn["content"]>().toEqualTypeOf<string>();
+  });
+});
+
+describe("AskInput", () => {
+  it("has exactly the wire-backed fields — no minScore, no stream", () => {
+    expectTypeOf<keyof AskInput>().toEqualTypeOf<
+      "question" | "fileIds" | "collectionId" | "filters" | "topK" | "model" | "history"
+    >();
+  });
+});
+
+describe("AskResponse", () => {
+  it("is the flat non-streaming body", () => {
+    expectTypeOf<AskResponse>().toEqualTypeOf<{ answer: string; sources: RetrievalSource[] }>();
+  });
+
+  it("client.ask resolves it", () => {
+    expectTypeOf<Awaited<ReturnType<KyroClient["ask"]>>>().toEqualTypeOf<AskResponse>();
+  });
+});
+
+describe("AskStreamEvent", () => {
+  it("is the inline four-event union", () => {
+    expectTypeOf<AskStreamEvent>().toEqualTypeOf<
+      | { type: "sources"; sources: RetrievalSource[] }
+      | { type: "chunk"; text: string }
+      | { type: "done" }
+      | { type: "error"; message: string }
+    >();
+  });
+
+  it("client.askStream yields it", () => {
+    expectTypeOf<ReturnType<KyroClient["askStream"]>>().toEqualTypeOf<AsyncGenerator<AskStreamEvent>>();
   });
 });

@@ -178,6 +178,12 @@ export interface RetrievalSource {
   rerankScore?: number;
 }
 
+/** One prior conversational turn for `AskInput.history`. */
+export interface AskTurn {
+  role:    "user" | "assistant";
+  content: string;
+}
+
 export interface AskInput {
   question:     string;
   /** Search within specific files. Mutually exclusive with collectionId. */
@@ -190,10 +196,12 @@ export interface AskInput {
   topK?:        number;
   /** Ollama model override. */
   model?:       string;
-  /** Minimum RRF score threshold. Default: 0. */
-  minScore?:    number;
-  /** Whether to stream the response. Default: true. */
-  stream?:      boolean;
+  /**
+   * Conversation memory: recent user/assistant turns replayed to the LLM
+   * verbatim (read-only — they never affect retrieval). Max 10 turns,
+   * content 1–2000 chars each.
+   */
+  history?:     AskTurn[];
 }
 
 export interface AskResponse {
@@ -201,28 +209,17 @@ export interface AskResponse {
   sources: RetrievalSource[];
 }
 
-// ── Streaming events ──────────────────────────────────────────────────────────
-
-export interface SourcesEvent {
-  type:    "sources";
-  sources: RetrievalSource[];
-}
-
-export interface ChunkEvent {
-  type: "chunk";
-  text: string;
-}
-
-export interface DoneEvent {
-  type: "done";
-}
-
-export interface ErrorEvent {
-  type:    "error";
-  message: string;
-}
-
-export type AskStreamEvent = SourcesEvent | ChunkEvent | DoneEvent | ErrorEvent;
+/**
+ * Events of `client.askStream()` — the server's SSE frames, each a JSON
+ * object on a single `data:` line. One `sources` frame opens the stream,
+ * `chunk` frames carry the answer text, and `error` arrives in-band when
+ * the LLM fails after the stream is open.
+ */
+export type AskStreamEvent =
+  | { type: "sources"; sources: RetrievalSource[] }
+  | { type: "chunk";   text: string }
+  | { type: "done" }
+  | { type: "error";   message: string };
 
 // ── Search ───────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,12 @@
 import { HttpClient } from "./http";
-import type { SDKConfig, SearchInput, SearchResponse } from "./types";
+import type {
+  AskInput,
+  AskResponse,
+  AskStreamEvent,
+  SDKConfig,
+  SearchInput,
+  SearchResponse,
+} from "./types";
 import { HealthService } from "../services/health";
 import { FilesService } from "../services/files";
 import { CollectionsService } from "../services/collections";
@@ -65,5 +72,104 @@ export class KyroClient {
         }
 
         return this.http.get<SearchResponse>(`/search?${params}`, "apiKey");
+    }
+
+    /**
+     * Document-grounded Q&A — POST /ask, non-streaming. Always sends
+     * `stream: false`; use {@link KyroClient.askStream} for the SSE mode.
+     * Retrieval is the same hybrid search as {@link KyroClient.search}
+     * (RRF-fused chunks, no minimum-score filter). The server returns a
+     * 400 with a verbatim hint when RAG itself is not configured.
+     *
+     * Scope: `collectionId` XOR `fileIds` — providing both throws
+     * client-side; `filters` combines with either. `history` replays up to
+     * 10 prior user/assistant turns so follow-up questions resolve against
+     * the thread.
+     *
+     * Throws:
+     * - `KyroValidationError` (400) — invalid input (`details` carries the
+     *   per-field messages, e.g. a question over 2000 chars or more than
+     *   10 history turns), or RAG is not configured on the server
+     * - `KyroNotFoundError` (404) — a scoped collection or file does not
+     *   exist in this organisation
+     * - `KyroUnprocessableError` (422) — the scope resolves to nothing
+     */
+    async ask(input: AskInput): Promise<AskResponse> {
+        this.assertAskScope(input);
+
+        return this.http.post<AskResponse>("/ask", { ...input, stream: false }, "apiKey");
+    }
+
+    /**
+     * Document-grounded Q&A — POST /ask with `stream: true`, yielding the
+     * server's SSE frames as they arrive: one `sources` event opens the
+     * stream, then `chunk` events carry the answer and a trailing `done`
+     * closes it. If the LLM fails after the stream is open, the failure
+     * arrives as an `error` event — the status code is moot at that point.
+     * Pre-stream failures (invalid input, scope errors, RAG not
+     * configured) throw the same errors as {@link KyroClient.ask}.
+     *
+     * Scope/mutual-exclusion semantics: see {@link KyroClient.ask}.
+     */
+    async *askStream(input: AskInput): AsyncGenerator<AskStreamEvent> {
+        this.assertAskScope(input);
+
+        const res = await this.http.getRawResponse(
+            "/ask",
+            { method: "POST", body: JSON.stringify({ ...input, stream: true }) },
+            "apiKey"
+        );
+
+        if (!res.body) {
+            throw new Error("No response body for streaming ask");
+        }
+
+        const reader  = res.body.getReader();
+        const decoder = new TextDecoder();
+        let   buffer  = "";
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() ?? "";
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith("data:")) continue;
+                    const json = trimmed.slice(5).trim();
+                    if (!json) continue;
+                    try {
+                        // Frames are single-line JSON (what the server
+                        // writes); multi-line data is never concatenated.
+                        yield JSON.parse(json) as AskStreamEvent;
+                    } catch {
+                        // malformed SSE line — skip
+                    }
+                }
+            }
+
+            // flush a final frame that lacks the terminating blank line
+            if (buffer.trim().startsWith("data:")) {
+                const json = buffer.trim().slice(5).trim();
+                if (json) {
+                    try {
+                        yield JSON.parse(json) as AskStreamEvent;
+                    } catch { /* ignore */ }
+                }
+            }
+        } finally {
+            reader.releaseLock();
+        }
+    }
+
+    /** Both ask modes accept only one retrieval scope — mirrors search(). */
+    private assertAskScope(input: AskInput): void {
+        if (input.collectionId && input.fileIds?.length) {
+            throw new TypeError("collectionId and fileIds are mutually exclusive — provide either, not both");
+        }
     }
 }
