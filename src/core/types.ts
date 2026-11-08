@@ -73,13 +73,7 @@ export interface ReprocessResponse {
   message: string;
 }
 
-export interface SearchResult extends FileRecord {
-  rank: number;
-  headline: string;
-}
-
 export type FileListResponse = PaginatedResponse<FileListRow>;
-export type SearchResponse   = PaginatedResponse<SearchResult>;
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -230,21 +224,34 @@ export interface ErrorEvent {
 
 export type AskStreamEvent = SourcesEvent | ChunkEvent | DoneEvent | ErrorEvent;
 
-// ── Semantic search ───────────────────────────────────────────────────────────
+// ── Search ───────────────────────────────────────────────────────────────────
 
-export interface SemanticSearchInput {
-  query:        string;
+/** Input of `client.search()`. */
+export interface SearchInput {
+  query: string;
+  /** Default 10 — the server caps the limit at 50. */
+  limit?: number;
+  /** Mutually exclusive with fileIds — providing both throws client-side. */
   collectionId?: string;
-  fileIds?:      string[];
-  limit?:        number;
-  minScore?:     number;
+  /** Mutually exclusive with collectionId; sent comma-joined as `file_ids`. */
+  fileIds?: string[];
+  /**
+   * Metadata filters: AND across keys, OR across values. Serialized as a
+   * URL-encoded JSON object.
+   *
+   * Example: { matter_number: "M-2024-001", document_type: ["contract", "amendment"] }
+   */
+  filters?: MetadataFilters;
 }
 
-export interface SemanticSearchResponse {
-  data:     RetrievalSource[];
-  query:    string;
-  limit:    number;
-  minScore: number;
+/**
+ * Response of `client.search()` — hybrid retrieval (pgvector + ts_rank)
+ * fused with Reciprocal Rank Fusion (k = 60).
+ */
+export interface SearchResponse {
+  data:  RetrievalSource[];
+  query: string;
+  limit: number;
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────

@@ -10,11 +10,16 @@ import type {
   FileStatus,
   FileUploadResponse,
   HealthResponse,
+  MetadataFilters,
   OffsetPagination,
   OffsetPaginatedResponse,
+  RetrievalSource,
+  SearchInput,
+  SearchResponse,
   TextExtractionResponse,
   UpdateCollectionResponse,
 } from "../src/core/types";
+import type { KyroClient } from "../src/core/client";
 import type { CollectionsService } from "../src/services/collections";
 import type { FilesService } from "../src/services/files";
 import type { HealthService } from "../src/services/health";
@@ -147,5 +152,28 @@ describe("HealthResponse", () => {
   it("getHealth resolves it", () => {
     type GetHealthReturn = Awaited<ReturnType<HealthService["getHealth"]>>;
     expectTypeOf<GetHealthReturn>().toEqualTypeOf<HealthResponse>();
+  });
+});
+
+describe("SearchResponse", () => {
+  it("is the flat hybrid-retrieval wrapper", () => {
+    expectTypeOf<SearchResponse>().toEqualTypeOf<{
+      data:  RetrievalSource[];
+      query: string;
+      limit: number;
+    }>();
+  });
+
+  it("client.search resolves it", () => {
+    type SearchReturn = Awaited<ReturnType<KyroClient["search"]>>;
+    expectTypeOf<SearchReturn>().toEqualTypeOf<SearchResponse>();
+  });
+});
+
+describe("SearchInput", () => {
+  it("keeps only wire-backed fields — no minScore", () => {
+    expectTypeOf<SearchInput["query"]>().toEqualTypeOf<string>();
+    expectTypeOf<SearchInput["limit"]>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<SearchInput["filters"]>().toEqualTypeOf<MetadataFilters | undefined>();
   });
 });
