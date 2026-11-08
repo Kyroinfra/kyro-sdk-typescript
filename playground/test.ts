@@ -60,6 +60,26 @@ let uploadedFileId     = "";
 let uploadedFileId2    = "";
 let collectionId       = "";
 
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Extraction and embedding run inside the server's ingest pipeline. Poll
+ * getText() until the file's status settles so later sections (search/ask)
+ * query embedded content — or a terminal failure — rather than a moving one.
+ */
+async function waitForReady(fileId: string, label: string, timeoutMs = 30000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const res = await client.files.getText(fileId);
+        if (res.status === "ready" || res.status === "failed" || res.status === "skipped") {
+            console.log(`  ${c.dim(`${label} pipeline status: ${res.status}`)}`);
+            return;
+        }
+        await new Promise(r => setTimeout(r, 1000));
+    }
+    console.log(`  ${c.warn(`${label} pipeline did not settle in ${timeoutMs / 1000}s`)}`);
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 async function testHealth() {
@@ -69,6 +89,9 @@ async function testHealth() {
         console.log(c.info("  → getHealth"));
         const res = await client.health.getHealth();
         logResponse("Health", res);
+        if (res.status === "degraded") {
+            console.log(`  ${c.warn("Health DEGRADED:")} server is up but its database is not — retrieval may find nothing.`);
+        }
     } catch (e) {
         logError("getHealth", e);
     }
@@ -106,7 +129,7 @@ async function testFiles() {
     try {
         console.log(c.info("  → upload (txt #2)"));
         const blob = new Blob(
-            ["Hybrid search combines BM25 and vector retrieval using Reciprocal Rank Fusion."],
+            ["Hybrid search combines lexical and vector retrieval using Reciprocal Rank Fusion."],
             { type: "text/plain" }
         );
         const res = await client.files.upload(blob, "playground-2.txt");
@@ -114,6 +137,23 @@ async function testFiles() {
         uploadedFileId2 = res.id;
     } catch (e) {
         logError("upload #2", e);
+    }
+
+    // poll both uploads until the pipeline settles (extract + embed are automatic)
+    try {
+        console.log(c.info("  → waitForReady (file #1)"));
+        if (!uploadedFileId) { logSkip("waitForReady (file #1)", "no file id"); }
+        else { await waitForReady(uploadedFileId, "file #1"); }
+    } catch (e) {
+        logError("waitForReady (file #1)", e);
+    }
+
+    try {
+        console.log(c.info("  → waitForReady (file #2)"));
+        if (!uploadedFileId2) { logSkip("waitForReady (file #2)", "no file id"); }
+        else { await waitForReady(uploadedFileId2, "file #2"); }
+    } catch (e) {
+        logError("waitForReady (file #2)", e);
     }
 
     // download
@@ -297,6 +337,143 @@ async function testCollections() {
     }
 }
 
+// ── Search ────────────────────────────────────────────────────────────────────
+
+async function testSearch() {
+    console.log(c.header("\n━━━ Search ━━━"));
+
+    // org-wide
+    try {
+        console.log(c.info("  → client.search (org-wide)"));
+        const res = await client.search({ query: "document storage platform" });
+        logResponse("search (org-wide)", res);
+    } catch (e) {
+        logError("search (org-wide)", e);
+    }
+
+    // scoped to a collection
+    try {
+        console.log(c.info("  → client.search (collection)"));
+        if (!collectionId) { logSkip("search (collection)", "no collection id"); }
+        else {
+            const res = await client.search({
+                query:        "quick brown fox",
+                collectionId: collectionId,
+            });
+            logResponse("search (collection)", res);
+        }
+    } catch (e) {
+        logError("search (collection)", e);
+    }
+
+    // scoped to specific files
+    try {
+        console.log(c.info("  → client.search (fileIds)"));
+        const fileIds = [uploadedFileId, uploadedFileId2].filter(Boolean);
+        if (!fileIds.length) { logSkip("search (fileIds)", "no file ids"); }
+        else {
+            const res = await client.search({
+                query:   "quick brown fox",
+                fileIds: fileIds,
+            });
+            logResponse("search (fileIds)", res);
+        }
+    } catch (e) {
+        logError("search (fileIds)", e);
+    }
+
+    // metadata filters (file #1 carries matter_number: M-2026-002 after the partial update)
+    try {
+        console.log(c.info("  → client.search (filters)"));
+        const res = await client.search({
+            query:   "document storage platform",
+            filters: { matter_number: "M-2026-002" },
+        });
+        logResponse("search (filters)", res);
+    } catch (e) {
+        logError("search (filters)", e);
+    }
+}
+
+// ── Ask ───────────────────────────────────────────────────────────────────────
+
+async function testAsk() {
+    console.log(c.header("\n━━━ Ask ━━━"));
+
+    // buffered
+    try {
+        console.log(c.info("  → client.ask (buffered)"));
+        if (!collectionId) { logSkip("ask (buffered)", "no collection id"); }
+        else {
+            const res = await client.ask({
+                question:     "What text did we upload for the playground?",
+                collectionId: collectionId,
+            });
+            logResponse("ask (buffered)", res);
+        }
+    } catch (e) {
+        logError("ask (buffered)", e);
+    }
+
+    // follow-up: replay the prior turn as history (read-only context)
+    try {
+        console.log(c.info("  → client.ask (history)"));
+        if (!collectionId) { logSkip("ask (history)", "no collection id"); }
+        else {
+            const res = await client.ask({
+                question:     "Does the text mention any animals?",
+                collectionId: collectionId,
+                history: [
+                    { role: "user",      content: "What text did we upload for the playground?" },
+                    { role: "assistant", content: "A playground text about a quick brown fox jumping over a lazy dog." },
+                ],
+            });
+            logResponse("ask (history)", res);
+        }
+    } catch (e) {
+        logError("ask (history)", e);
+    }
+}
+
+// ── Ask (streaming) ───────────────────────────────────────────────────────────
+
+async function testAskStream() {
+    console.log(c.header("\n━━━ Ask (streaming) ━━━"));
+
+    try {
+        console.log(c.info("  → client.askStream"));
+        if (!collectionId) { logSkip("askStream", "no collection id"); }
+        else {
+            for await (const event of client.askStream({
+                question:     "Summarise the uploaded text in one sentence.",
+                collectionId: collectionId,
+            })) {
+                switch (event.type) {
+                    case "sources":
+                        console.log(`  ${c.success("sources:")} ${event.sources.length} chunk(s)`);
+                        for (const s of event.sources) {
+                            console.log(`    ${c.dim(`${s.fileName} (chunk ${s.chunkIndex}) — rrf ${s.rrfScore}`)}`);
+                        }
+                        break;
+                    case "chunk":
+                        process.stdout.write(event.text);
+                        break;
+                    case "done":
+                        process.stdout.write("\n");
+                        console.log(`  ${c.success("done")}`);
+                        break;
+                    case "error":
+                        console.error(`  ${c.error("stream error:")} ${event.message}`);
+                        break;
+                }
+            }
+            console.log(c.dim("  (stream closed)"));
+        }
+    } catch (e) {
+        logError("askStream", e);
+    }
+}
+
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 
 async function testCleanup() {
@@ -371,6 +548,9 @@ async function runAllTests() {
     await testFiles();
     await testMetadata();
     await testCollections();
+    await testSearch();
+    await testAsk();
+    await testAskStream();
     await testCleanup();
     await testV1Smoke();
 
