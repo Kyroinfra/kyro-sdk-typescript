@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { afterAll, describe, expect, it } from "vitest";
 import { KyroClient } from "../../src";
 import { KyroApiError, KyroNotFoundError, KyroUnprocessableError, KyroValidationError } from "../../src/core/errors";
@@ -5,16 +6,26 @@ import type { AskStreamEvent } from "../../src/core/types";
 
 // ── Live-server gate ───────────────────────────────────────────────────────
 //
-// The suite self-skips unless a real deployment is provided, so the plain
-// `npm test` unit gates stay green anywhere (issue #22). Run it against a
-// live dev stack (compose + `pnpm dev:api`, https or http — Kong/Nginx port
-// for your deployment):
+// The suite self-skips unless a real deployment is provided AND the run was
+// started by the dedicated integration runner (issue #22), which sets
+// KYRO_TEST_LIVE itself. dotenv loads `.env` for it, so the key can live in
+// the file instead of the command line; plain `npm test` never sets the
+// switch and never touches the network.
 //
-//   KYRO_TEST_API_KEY=kyro_live_... npm run test:integration
+// The key variable is strictly KYRO_TEST_API_KEY — never a fallback to
+// KYRO_API_KEY (the playground's name), so a repo carrying that name must
+// not start live traffic by accident. To run against a live dev stack
+// (compose + `pnpm dev:api`):
+//
+//   export KYRO_TEST_API_KEY=kyro_live_...   # or put it in .env
+//   npm run test:integration
 //
 // Optionally KYRO_TEST_BASE_URL points the client elsewhere.
 
 const API_KEY = process.env.KYRO_TEST_API_KEY;
+// Only the integration script sets this; without it the suite cannot open,
+// however the key is provided.
+const LIVE_RUN = process.env.KYRO_TEST_LIVE === "1";
 const BASE_URL = process.env.KYRO_TEST_BASE_URL ?? "http://localhost:3000/api/v1";
 const T = 60_000; // generous per-test budget: ingest pipeline + first-hit LLM
 
@@ -49,7 +60,7 @@ async function deleteQuietly(label: string, fn: () => Promise<unknown>): Promise
     info(`cleanup ${label} deleted`);
 }
 
-describe.skipIf(!API_KEY)("live Kyro API", () => {
+describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     /** Polls getText() until both uploads reach a terminal pipeline status. */
     async function awaitTerminalFiles(): Promise<void> {
         const deadline = Date.now() + 45_000;
