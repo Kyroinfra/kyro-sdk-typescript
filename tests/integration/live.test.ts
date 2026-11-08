@@ -41,6 +41,10 @@ let fileAId = "";
 let fileBId = "";
 let collectionId = "";
 let ragEnabled = true;
+// Root-cause capture: when a creator test fails, dependents label themselves
+// with it instead of spraying empty-id 404s ("/files//text") across the run.
+let uploadCause = "";
+let collectionCause = "";
 
 function info(msg: string) {
     console.log(`  [live] ${msg}`);
@@ -58,6 +62,18 @@ async function deleteQuietly(label: string, fn: () => Promise<unknown>): Promise
         return;
     }
     info(`cleanup ${label} deleted`);
+}
+
+/** Dependent tests fail with the captured creator error, not empty-id noise. */
+function requireFiles(): void {
+    if (!fileAId) {
+        throw new Error(`prerequisite failed: upload test produced no file ids (${uploadCause || "unknown cause"})`);
+    }
+}
+function requireCollection(): void {
+    if (!collectionId) {
+        throw new Error(`prerequisite failed: collections.create produced no id (${collectionCause || "unknown cause"})`);
+    }
 }
 
 describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
@@ -111,17 +127,23 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("files: uploads two uniquely-named texts", async () => {
-        const a = await client.files.upload(new Blob([textA], { type: "text/plain" }), `kyro-sdk-it-${epoch}-a.txt`);
-        expect(a.id).toBeTypeOf("string");
-        expect(["pending", "processing"]).toContain(a.status);
-        fileAId = a.id;
+        try {
+            const a = await client.files.upload(new Blob([textA], { type: "text/plain" }), `kyro-sdk-it-${epoch}-a.txt`);
+            expect(a.id).toBeTypeOf("string");
+            expect(["pending", "processing"]).toContain(a.status);
+            fileAId = a.id;
 
-        const b = await client.files.upload(new Blob([textB], { type: "text/plain" }), `kyro-sdk-it-${epoch}-b.txt`);
-        expect(b.id).toBeTypeOf("string");
-        fileBId = b.id;
+            const b = await client.files.upload(new Blob([textB], { type: "text/plain" }), `kyro-sdk-it-${epoch}-b.txt`);
+            expect(b.id).toBeTypeOf("string");
+            fileBId = b.id;
+        } catch (e) {
+            uploadCause = e instanceof KyroApiError ? `[${e.status}] ${e.message}` : String(e);
+            throw e;
+        }
     }, T);
 
     it("files: ingest pipeline settles (extract + embed are automatic)", async () => {
+        requireFiles();
         await awaitTerminalFiles();
         const [a, b] = await Promise.all([
             client.files.getText(fileAId),
@@ -140,11 +162,13 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("files: download returns the original bytes", async () => {
+        requireFiles();
         const blob = await client.files.download(fileAId);
         expect(blob.size).toBeGreaterThan(0);
     }, T);
 
     it("metadata: set, merge, and delete a key", async () => {
+        requireFiles();
         const set = await client.files.setMetadata(fileAId, { matter_number: matterKey, author: "kyro-it" });
         expect(set).toMatchObject({ matter_number: matterKey, author: "kyro-it" });
 
@@ -160,20 +184,26 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("collections: create and read the detail view", async () => {
-        const created = await client.collections.create({
-            name:        `kyro-sdk-it-${epoch}`,
-            description: "live integration run",
-        });
-        expect(created.id).toBeTypeOf("string");
-        collectionId = created.id;
+        try {
+            const created = await client.collections.create({
+                name:        `kyro-sdk-it-${epoch}`,
+                description: "live integration run",
+            });
+            expect(created.id).toBeTypeOf("string");
+            collectionId = created.id;
 
-        const detail = await client.collections.get(collectionId);
-        expect(detail.name).toBe(`kyro-sdk-it-${epoch}`);
-        expect(detail.fileCount).toBe(0);
-        expect(typeof detail.queryReady).toBe("boolean");
+            const detail = await client.collections.get(collectionId);
+            expect(detail.name).toBe(`kyro-sdk-it-${epoch}`);
+            expect(detail.fileCount).toBe(0);
+            expect(typeof detail.queryReady).toBe("boolean");
+        } catch (e) {
+            collectionCause = e instanceof KyroApiError ? `[${e.status}] ${e.message}` : String(e);
+            throw e;
+        }
     }, T);
 
     it("collections: addFiles, duplicates tolerated", async () => {
+        requireCollection();
         const first = await client.collections.addFiles(collectionId, { fileIds: [fileAId, fileBId] });
         expect(first.added).toBe(2);
 
@@ -182,6 +212,7 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("collections: listFiles offsets over exactly its members", async () => {
+        requireCollection();
         const res = await client.collections.listFiles(collectionId);
         expect(res.pagination.total).toBe(2);
         expect(res.pagination.hasMore).toBe(false);
@@ -190,11 +221,13 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("collections: queryReady flips once members are embedded", async () => {
+        requireCollection();
         const detail = await client.collections.get(collectionId);
         expect(detail.queryReady, `embedded=${detail.embeddedCount}/${detail.fileCount}`).toBe(true);
     }, T);
 
     it("search: org-wide retrieves the ingested text", async () => {
+        requireFiles();
         const res = await client.search({ query: "quick brown fox", limit: 20 });
         const rows = res.data.filter(d => d.fileId === fileAId);
         expect(rows.length, `no row for file A among ${res.data.length} results`).toBeGreaterThan(0);
@@ -204,6 +237,8 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("search: collection scope is rectified to its members", async () => {
+        requireFiles();
+        requireCollection();
         const res = await client.search({
             query:        "quick brown fox",
             collectionId: collectionId,
@@ -214,6 +249,7 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("search: fileIds scope stays within the requested files", async () => {
+        requireFiles();
         const res = await client.search({
             query:   "Reciprocal Rank Fusion",
             fileIds: [fileBId],
@@ -224,6 +260,7 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
 
     it("search: metadata filters exclude unmarked files", async () => {
         // file B carries no metadata — the filter must exclude it entirely
+        requireFiles();
         const res = await client.search({
             query:   "quick brown fox",
             filters: { matter_number: matterKey },
@@ -233,6 +270,8 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
     }, T);
 
     it("collections: removeFile takes effect", async () => {
+        requireFiles();
+        requireCollection();
         await client.collections.removeFile(collectionId, fileBId);
         const res = await client.collections.listFiles(collectionId);
         expect(res.pagination.total).toBe(1);
@@ -241,6 +280,7 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
 
     it("ask: buffered answer grounded in the collection", async (ctx) => {
         if (!ragEnabled) { ctx.skip(); return; }
+        requireCollection();
         const res = await client.ask({
             question:     "What animal is mentioned in the text?",
             collectionId: collectionId,
@@ -252,6 +292,7 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
 
     it("ask: history follow-up carries the thread", async (ctx) => {
         if (!ragEnabled) { ctx.skip(); return; }
+        requireCollection();
         const res = await client.ask({
             question:     "What color is that animal?",
             collectionId: collectionId,
@@ -266,6 +307,7 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
 
     it("askStream: sources first, chunks, then a terminal done", async (ctx) => {
         if (!ragEnabled) { ctx.skip(); return; }
+        requireCollection();
         const events: AskStreamEvent[] = [];
         for await (const event of client.askStream({
             question:     "Summarise the text.",
@@ -283,14 +325,23 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
         info(`${events.filter(e => e.type === "chunk").length} chunk event(s)`);
     }, T);
 
-    it("negative: unknown collection scopes to a typed 404", async () => {
-        const err = await client.search({ query: "x", collectionId: crypto.randomUUID() }).catch((e: unknown) => e);
-        expect(err).toBeInstanceOf(KyroNotFoundError);
-        expect((err as KyroApiError).status).toBe(404);
+    it("negative: unknown collection or fileIds scope to a typed 404", async () => {
+        const col = await client.search({ query: "x", collectionId: crypto.randomUUID() }).catch((e: unknown) => e);
+        expect(col).toBeInstanceOf(KyroNotFoundError);
+        expect((col as KyroApiError).status).toBe(404);
+
+        // rag/scope.ts resolves fileIds the same way — no owned id -> 404
+        const fil = await client.search({ query: "x", fileIds: [crypto.randomUUID()] }).catch((e: unknown) => e);
+        expect(fil).toBeInstanceOf(KyroNotFoundError);
+        expect((fil as KyroApiError).status).toBe(404);
     }, T);
 
-    it("negative: unresolvable fileIds scope to a typed 422", async () => {
-        const err = await client.search({ query: "x", fileIds: [crypto.randomUUID()] }).catch((e: unknown) => e);
+    it("negative: metadata filters matching nothing resolve to a typed 422", async () => {
+        // a key no file will ever carry, so the answer is 422 in every state
+        const err = await client.search({
+            query:   "x",
+            filters: { matter_number: `no-such-metadata-${epoch}` },
+        }).catch((e: unknown) => e);
         expect(err).toBeInstanceOf(KyroUnprocessableError);
         expect((err as KyroApiError).status).toBe(422);
     }, T);
