@@ -231,6 +231,9 @@ describe.skipIf(!API_KEY || !LIVE_RUN)("live Kyro API", () => {
         const res = await client.search({ query: "quick brown fox", limit: 20 });
         const rows = res.data.filter(d => d.fileId === fileAId);
         expect(rows.length, `no row for file A among ${res.data.length} results`).toBeGreaterThan(0);
+        // the wire carries the score as a Postgres-numeric string; the SDK
+        // must hand consumers a number (see normalizeSource in client.ts)
+        expect(rows.every(r => typeof r.rrfScore === "number" && Number.isFinite(r.rrfScore))).toBe(true);
         expect(rows.every(r => r.rrfScore > 0)).toBe(true);
         expect(rows.some(r => r.content.includes("quick brown fox"))).toBe(true);
         expect(res.limit).toBe(20);

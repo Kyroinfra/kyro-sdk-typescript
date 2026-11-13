@@ -77,6 +77,23 @@ describe("client.search", () => {
     await expect(client.search({ query: "hello" })).resolves.toEqual(body);
   });
 
+  it("coerces the numeric-as-string rrfScore the wire carries into a number", async () => {
+    // The API computes the score in Postgres as numeric — the pg driver
+    // serializes it as text; observed live: "0.03226645849596669269".
+    const body = {
+      data: [{ fileId: "f1", fileName: "a.txt", chunkIndex: 0, content: "hello", rrfScore: "0.03226645849596669269", rerankScore: "0.4" }],
+      query: "hello",
+      limit: 10,
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(200, body)));
+    const res = await client.search({ query: "hello" });
+    const row = res.data[0];
+    expect(typeof row.rrfScore).toBe("number");
+    expect(row.rrfScore).toBe(Number("0.03226645849596669269"));
+    expect(row.rerankScore).toBe(0.4);
+    expect(row.fileId).toBe("f1");
+  });
+
   it("maps scope failures to the typed errors", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(404, { error: "Collection not found" })));
     await expect(client.search({ query: "x", collectionId: "nope" })).rejects.toBeInstanceOf(KyroNotFoundError);

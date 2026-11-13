@@ -111,6 +111,17 @@ describe("client.ask", () => {
     expect(err).toBeInstanceOf(KyroValidationError);
     expect((err as KyroValidationError).message).toBe("OLLAMA_URL must be configured to use the /ask endpoint");
   });
+
+  it("coerces the numeric-as-string rrfScore in sources into a number", async () => {
+    const body = {
+      answer: "4,200",
+      sources: [{ fileId: "f1", fileName: "a.pdf", chunkIndex: 2, content: "total", rrfScore: "0.01639344262295081967" }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(200, body)));
+    const res = await client.ask({ question: "totals?" });
+    expect(typeof res.sources[0].rrfScore).toBe("number");
+    expect(res.sources[0].rrfScore).toBe(Number("0.01639344262295081967"));
+  });
 });
 
 describe("client.askStream", () => {
@@ -139,6 +150,20 @@ describe("client.askStream", () => {
       { type: "chunk", text: "Part 2." },
       { type: "done" },
     ]);
+  });
+
+  it("coerces the numeric-as-string rrfScore in the sources frame", async () => {
+    const chunks = [
+      'data: {"type":"sources","sources":[{"fileId":"f1","fileName":"a.pdf","chunkIndex":0,"content":"c","rrfScore":"0.031746031746031746"}]}\n\n',
+      'data: {"type":"done"}\n\n',
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => sseResponse(chunks)));
+    const events = await collectEvents({ question: "q" });
+    const first = events[0];
+    expect(first.type).toBe("sources");
+    if (first.type !== "sources") throw new Error("unreachable");
+    expect(typeof first.sources[0].rrfScore).toBe("number");
+    expect(first.sources[0].rrfScore).toBe(Number("0.031746031746031746"));
   });
 
   it("reassembles frames split across network chunks", async () => {
