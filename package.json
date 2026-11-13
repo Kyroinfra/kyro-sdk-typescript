@@ -23,7 +23,7 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [],
-  "author": "Nyxox-debug",
+  "author": "nyxox",
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
