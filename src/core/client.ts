@@ -3,6 +3,7 @@ import type {
   AskInput,
   AskResponse,
   AskStreamEvent,
+  RetrievalSource,
   SDKConfig,
   SearchInput,
   SearchResponse,
@@ -10,6 +11,35 @@ import type {
 import { HealthService } from "../services/health";
 import { FilesService } from "../services/files";
 import { CollectionsService } from "../services/collections";
+
+/**
+ * The wire carries the RRF score as a string: the API computes it in SQL as
+ * `1.0 / (k + rank)`, a Postgres `numeric`, which the pg driver serializes as
+ * text — "0.03226645849596669269" was observed live. The documented contract
+ * (and every doc example) is `number`, so scores are coerced on arrival.
+ * `Number()` is a no-op on real numbers, so a server-side column-type fix
+ * later stays transparent.
+ */
+function normalizeSource(source: RetrievalSource): RetrievalSource {
+    const rrfScore    = typeof (source.rrfScore as number | string) === "string"
+        ? Number(source.rrfScore)
+        : source.rrfScore;
+    const rerankScore = typeof (source.rerankScore as number | string | undefined) === "string"
+        ? Number(source.rerankScore)
+        : source.rerankScore;
+    return { ...source, rrfScore, ...(rerankScore !== undefined ? { rerankScore } : {}) };
+}
+
+function normalizeSources(sources: RetrievalSource[]): RetrievalSource[] {
+    return sources.map(normalizeSource);
+}
+
+/** Normalizes a stream's `sources` frame; every other event passes through untouched. */
+function normalizeEvent(event: AskStreamEvent): AskStreamEvent {
+    return event.type === "sources"
+        ? { ...event, sources: normalizeSources(event.sources) }
+        : event;
+}
 
 export class KyroClient {
     private http: HttpClient;
@@ -71,7 +101,8 @@ export class KyroClient {
             params.append("filters", JSON.stringify(input.filters));
         }
 
-        return this.http.get<SearchResponse>(`/search?${params}`, "apiKey");
+        const res = await this.http.get<SearchResponse>(`/search?${params}`, "apiKey");
+        return { ...res, data: normalizeSources(res.data) };
     }
 
     /**
@@ -97,7 +128,8 @@ export class KyroClient {
     async ask(input: AskInput): Promise<AskResponse> {
         this.assertAskScope(input);
 
-        return this.http.post<AskResponse>("/ask", { ...input, stream: false }, "apiKey");
+        const res = await this.http.post<AskResponse>("/ask", { ...input, stream: false }, "apiKey");
+        return { ...res, sources: normalizeSources(res.sources) };
     }
 
     /**
@@ -145,7 +177,7 @@ export class KyroClient {
                     try {
                         // Frames are single-line JSON (what the server
                         // writes); multi-line data is never concatenated.
-                        yield JSON.parse(json) as AskStreamEvent;
+                        yield normalizeEvent(JSON.parse(json) as AskStreamEvent);
                     } catch {
                         // malformed SSE line — skip
                     }
@@ -157,7 +189,7 @@ export class KyroClient {
                 const json = buffer.trim().slice(5).trim();
                 if (json) {
                     try {
-                        yield JSON.parse(json) as AskStreamEvent;
+                        yield normalizeEvent(JSON.parse(json) as AskStreamEvent);
                     } catch { /* ignore */ }
                 }
             }

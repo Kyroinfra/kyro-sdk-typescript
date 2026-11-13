@@ -72,6 +72,16 @@ notes at the bottom.
 - **`history`** (#7): replay up to 10 prior user/assistant turns on `ask` so
   follow-up questions resolve against the thread.
 
+### Fixed
+
+- **`rrfScore` now always arrives as a `number`** — the API computes it in
+  Postgres as `numeric`, which reaches the wire as a string
+  (`"0.03226645849596669269"`), so consumer code doing `.toFixed()` or
+  numeric comparisons crashed on live data. Scores are coerced on arrival
+  in `search()`, `ask()` and `askStream()` (`rerankScore` likewise when
+  present). Found by the pre-publish consumer simulation against the live
+  API (KYR-17).
+
 ### Packaging
 
 - Runtime `dependencies` are now **empty** — the SDK core is dependency-free
