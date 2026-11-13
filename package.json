@@ -20,6 +20,9 @@
     "build": "tsc",
     "test": "vitest run",
     "test:integration": "KYRO_TEST_LIVE=1 vitest run tests/integration/",
+    "check:dist": "node scripts/check-dist.mjs",
+    "check:pack": "node scripts/check-pack-payload.mjs",
+    "test:readme": "node scripts/check-readme-blocks.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [],
