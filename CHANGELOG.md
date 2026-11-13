@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/); this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## 2.0.0 — 2026-11-11
+## 2.0.0 — 2026-11-13
 
 Realignment of the SDK to the current Kyro API. The API serves `/api/v1` only,
 and the surface changed substantially; everything below is breaking. Migration
