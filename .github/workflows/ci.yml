@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Superseded runs on the same branch are dead weight — cancel them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Everything the SDK needs is offline: the live suite self-skips without a
+  # Kyro server and API key, so one job suffices — no services, no secrets.
+  gates:
+    name: build · test · dist · pack · readme
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # the version every gate below was baselined on
+          cache: npm
+
+      # npm install, never npm ci — by standing decision. The committed
+      # package-lock.json keeps the resolution deterministic.
+      - name: Install (lockfile-driven)
+        run: npm install
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: Test (unit suite; live suite self-skips)
+        run: npm test
+
+      # The published artifact must load: require() (the package's real
+      # "type": "commonjs" entry) and import() (what ESM consumers and
+      # bundlers hit) both resolve the full export surface.
+      - name: Dist loads in CJS and ESM
+        run: npm run check:dist
+
+      # The tarball may contain only dist/ plus README.md and package.json —
+      # source, tests, the playground, and secrets can never leak.
+      - name: Pack payload allowlist
+        run: npm run check:pack
+
+      # Every ```ts example in README.md must typecheck against src/ under
+      # strict mode — docs that stop compiling fail the build.
+      - name: README code blocks compile against src
+        run: npm run test:readme
